@@ -207,7 +207,8 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 | `write_set_custom_fields` | Validates dropdown values against `read_custom_field_options` before writing |
 | `write_team` | Add or remove a team on a card |
 | `write_comment`, `write_log_time`, `write_relate`, `write_follow` | Attachments: layer 1 `write_attachment` |
-| `write_test_cases` | Create test cases with steps under a test plan; record test runs |
+| `write_test_cases` | Create test cases with steps under a test plan |
+| `write_test_run` | Record a test plan run and per-test-case results |
 
 The `delete_` tier adds only what layer 1 `delete_entity` cannot express:
 `delete_card` (card by id alone, type resolved, parent side effects reported) and

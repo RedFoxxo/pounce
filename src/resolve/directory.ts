@@ -235,6 +235,29 @@ export class Directory {
     })
   }
 
+  /**
+   * States a team's assignment on a card can take: the team's sub-workflow for
+   * this entity type in this project (via TeamProjects), or the project
+   * workflow when the team has none.
+   */
+  async teamStates(processId: number, entityType: string, teamId: number, projectId: number): Promise<Result<TpState[]>> {
+    const states = await this.states(processId, entityType)
+    if (!states.ok) return states
+    const links = await this.cached(`teamproject:${teamId}:${projectId}`, async () => {
+      const r = await this.v1.list<{ Workflows?: { Items?: { Id: number; EntityType?: V1Ref | null; ParentWorkflow?: V1Ref | null }[] } }>(
+        'TeamProjects',
+        { where: `(Team.Id eq ${teamId}) and (Project.Id eq ${projectId})`, include: '[Id,Workflows[Id,Name,EntityType[Name],ParentWorkflow]]', innerTake: 1000 },
+      )
+      return r.ok ? ok(r.data.items, r.status) : r
+    })
+    if (!links.ok) return links
+    const workflow = links.data
+      .flatMap((l) => l.Workflows?.Items ?? [])
+      .find((w) => w.ParentWorkflow && w.EntityType?.Name === entityType)
+    const list = workflow ? states.data.filter((s) => s.Workflow?.Id === workflow.Id) : states.data.filter((s) => !isTeamWorkflowState(s))
+    return ok(list, states.status)
+  }
+
   async customField(processId: number, entityType: string, input: string | number): Promise<Resolved<TpCustomField>> {
     const r = await this.customFields(processId, entityType)
     if (!r.ok) return { ok: false, reason: 'error', message: `Could not load ${entityType} custom fields`, error: r }

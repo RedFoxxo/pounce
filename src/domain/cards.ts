@@ -19,8 +19,8 @@ import type { ToolContext } from '../tools/context.js'
 
 type Raw = Record<string, unknown>
 
-/** Parent references, nearest first. The first one set on a card is its parent. */
-export const PARENT_REFS = ['UserStory', 'Feature', 'Epic', 'PortfolioEpic', 'LinkedTestPlan', 'LinkedGeneral'] as const
+/** Parent references, nearest first. The first one set on a card is its parent (LinkedGeneral: the card a test plan covers). */
+export const PARENT_REFS = ['UserStory', 'Feature', 'Epic', 'PortfolioEpic', 'LinkedGeneral'] as const
 
 /** What a card read asks for; members the resource lacks are skipped. */
 const CARD_INCLUDE: [member: string, expr: string][] = [

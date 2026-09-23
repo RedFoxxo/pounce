@@ -86,3 +86,22 @@ export function htmlToText(html: string | null | undefined): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
+
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+const LOOKS_LIKE_HTML = /<\/?(p|div|br|ul|ol|li|a|b|strong|i|em|code|pre|h[1-6]|span|table|img|blockquote)\b[^>]*>/i
+
+/**
+ * Prepares a description for Targetprocess. HTML is sent as-is (never
+ * escaped twice); plain text is escaped and each line becomes a `<div>`.
+ */
+export function textToHtml(text: string): string {
+  if (LOOKS_LIKE_HTML.test(text) || MARKDOWN_MARKER.test(text)) return text
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => (line.trim() ? `<div>${escapeHtml(line)}</div>` : '<div><br></div>'))
+    .join('')
+}

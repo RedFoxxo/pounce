@@ -10,6 +10,14 @@ export interface StubCall {
   headers: Record<string, string>
 }
 
+/** Returned from a body function to answer with a specific status. */
+export class StubReply {
+  constructor(
+    readonly status: number,
+    readonly body: unknown,
+  ) {}
+}
+
 export interface StubRoute {
   method?: 'GET' | 'POST' | 'DELETE'
   /** Exact path (`/api/v1/UserStories/1`) or a pattern. */
@@ -38,6 +46,12 @@ export class FetchStub {
 
   on(route: StubRoute): this {
     this.routes.push({ ...route, used: 0 })
+    return this
+  }
+
+  /** Registers a route that takes precedence over every route registered so far. */
+  first(route: StubRoute): this {
+    this.routes.unshift({ ...route, used: 0 })
     return this
   }
 
@@ -97,10 +111,15 @@ export class FetchStub {
     }
     route.used++
     if (route.networkError) throw new TypeError(route.networkError)
-    const payload = typeof route.body === 'function' ? (route.body as (c: StubCall) => unknown)(call) : route.body
+    let payload = typeof route.body === 'function' ? (route.body as (c: StubCall) => unknown)(call) : route.body
+    let status = route.status ?? 200
+    if (payload instanceof StubReply) {
+      status = payload.status
+      payload = payload.body
+    }
     const text = typeof payload === 'string' ? payload : JSON.stringify(payload ?? null)
     return new Response(text, {
-      status: route.status ?? 200,
+      status,
       headers: { 'content-type': typeof payload === 'string' ? 'text/plain' : 'application/json', ...route.headers },
     })
   }
