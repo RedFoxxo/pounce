@@ -167,6 +167,10 @@ export class FakeTp {
     }
   }
 
+  private rollupAll() {
+    for (const c of this.cards.values()) if (c.type === 'Task') this.rollup(c)
+  }
+
   private shouldFail(call: StubCall): { status: number; message: string } | undefined {
     const f = this.failNext
     if (f && f.method === call.method && f.path.test(call.path)) {
@@ -183,7 +187,7 @@ export class FakeTp {
 
     s.get(/^\/api\/v1\/Generals\/\d+$/, (call: StubCall) => {
       const card = this.cards.get(Number(call.path.split('/').pop()))
-      return card ? general(card.Id, card.type, TYPE_ID[card.type]) : error(404, 'not found')
+      return card ? { ...general(card.Id, card.type, TYPE_ID[card.type]), Name: card.Name } : error(404, 'not found')
     })
 
     s.get('/api/v1/Assignments', (call: StubCall) => ({
@@ -289,6 +293,24 @@ export class FakeTp {
         }
         if (this.defaultAssignment) this.assignments.push({ Id: this.id(), card: card.Id, ...this.defaultAssignment })
         return reply({ ResourceType: type, Id: card.Id, Name: card.Name })
+      },
+    })
+
+    // cards: delete
+    s.on({
+      method: 'DELETE',
+      path: /^\/api\/v1\/(UserStories|Tasks|Bugs|Features|TestPlans|TestCases)\/\d+$/,
+      body: (call: StubCall) => {
+        const fail = this.shouldFail(call)
+        if (fail) return error(fail.status, fail.message)
+        const idv = Number(call.path.split('/').pop())
+        const card = this.cards.get(idv)
+        if (!card) return error(404, 'not found')
+        this.cards.delete(idv)
+        this.assignments = this.assignments.filter((a) => a.card !== idv)
+        this.roleEfforts = this.roleEfforts.filter((e) => e.card !== idv)
+        this.rollupAll()
+        return ''
       },
     })
 
