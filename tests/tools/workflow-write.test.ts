@@ -576,3 +576,43 @@ describe('review regressions (write, round 2)', () => {
     expect(r.text).toMatch(/inactive or deleted/)
   })
 })
+
+describe('live-test regressions', () => {
+  it('removes a default assignment Targetprocess adds after the first check', async () => {
+    const { tp } = world()
+    tp.lateDefaults = true
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_create_card', { type: 'Bug', name: 'B', parent: 36216, assignees: [{ user: 'me', role: 'Developer' }] })
+    expect(r.isError, r.text).toBe(false)
+    expect(r.json.removedDefaultAssignments).toEqual([{ id: expect.any(Number), user: 'Giorgio Verdi (16)', role: 'Product Owner', late: true }])
+    expect(r.json.card.assignments.map((a: { user: { id: number } }) => a.user.id)).toEqual([2286])
+    expect(r.json.notPersisted).toBeUndefined()
+  })
+
+  it('refuses system custom fields before sending', async () => {
+    const { tp } = world()
+    tp.stub.first({
+      method: 'GET',
+      path: '/api/v1/CustomFields',
+      body: { Items: [{ Id: 159, Name: 'Total Hours', FieldType: 'Number', IsSystem: true, Config: { CalculationModel: '' } }] },
+    })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_set_custom_fields', { id: 36216, fields: { 'Total Hours': 5 } })
+    expect(r.text).toMatch(/Total Hours is a system field; only Targetprocess sets it/)
+    expect(h.stub.writes).toHaveLength(0)
+  })
+
+  it('an exact project name beats the same abbreviation on another project', async () => {
+    const { tp } = world()
+    tp.stub.first({
+      method: 'GET',
+      path: '/api/v1/Projects',
+      body: { Items: [{ Id: 26080, Name: 'SBP', Abbreviation: 'SBP', IsActive: true, Process: { Id: 13 } }, { Id: 9655, Name: 'SBP - RDA Platform', Abbreviation: 'SBP', IsActive: true, Process: { Id: 13 } }] },
+    })
+    tp.stub.get('/api/v1/UserStories', { Items: [] })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('read_search', { type: 'UserStory', project: 'SBP' })
+    expect(r.isError, r.text).toBe(false)
+    expect(h.stub.find('GET', '/api/v1/UserStories')[0]!.query.get('where')).toContain('(Project.Id eq 26080)')
+  })
+})

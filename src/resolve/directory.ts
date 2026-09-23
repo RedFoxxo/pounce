@@ -54,6 +54,9 @@ export interface TpCustomField {
   /** Newline-separated options for DropDown / MultipleSelectionList. */
   Value?: string | null
   Required?: boolean
+  /** System fields (e.g. metrics) can only be set by Targetprocess itself. */
+  IsSystem?: boolean
+  Config?: { CalculationModel?: string | null } | null
   EntityType?: V1Ref | null
   Process?: V1Ref | null
 }
@@ -152,7 +155,7 @@ export class Directory {
     return this.cached(`cf:${processId}:${entityType}`, async () => {
       const r = await this.v1.list<TpCustomField>('CustomFields', {
         where: `(Process.Id eq ${processId}) and (EntityType.Name eq ${v1String(entityType)})`,
-        include: '[Id,Name,FieldType,Value,Required,EntityType[Id,Name],Process[Id,Name]]',
+        include: '[Id,Name,FieldType,Value,Required,IsSystem,Config,EntityType[Id,Name],Process[Id,Name]]',
         limit: DIRECTORY_LIMIT,
       })
       if (!r.ok) return r

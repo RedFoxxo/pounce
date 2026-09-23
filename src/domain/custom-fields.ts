@@ -14,6 +14,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /** Checks one value against the field's type; dropdown values must be one of its options. */
 export function checkCustomValue(field: TpCustomField, value: unknown): { ok: true; value: unknown } | { ok: false; message: string } {
+  if (field.IsSystem || field.Config?.CalculationModel) {
+    return { ok: false, message: `${field.Name} is ${field.IsSystem ? 'a system' : 'a calculated'} field; only Targetprocess sets it` }
+  }
   if (value === null) return { ok: true, value: null }
   const type = (field.FieldType ?? '').toLowerCase()
   const options = customFieldOptions(field)

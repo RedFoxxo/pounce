@@ -38,7 +38,7 @@ export async function harness(options: { stub?: FetchStub; config?: Partial<Conf
   const stub = options.stub ?? new FetchStub()
   const config: Config = { baseUrl: BASE, token: TOKEN, ...options.config }
   const catalog = snapshot()
-  const ctx = createContext(config, { fetch: stub.fetch, catalog: async () => catalog })
+  const ctx = createContext(config, { fetch: stub.fetch, catalog: async () => catalog, settleDelaysMs: [0] })
   const server = createServer(ctx)
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await server.connect(serverTransport)

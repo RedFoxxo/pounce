@@ -235,6 +235,9 @@ export const writeUnassign = defineTool({
 
 // ---------------------------------------------------------------- efforts
 
+/** Live: card and parent effort totals are recomputed a few seconds after a role-effort write. */
+const TOTALS_NOTE = 'Targetprocess recomputes effort totals a few seconds after a write; totals read right after it may still change'
+
 const effortsInput = z
   .array(z.object({ role, effort: effortValue.describe('Hours (or points) for this role') }))
   .min(1)
@@ -284,6 +287,7 @@ export const writeSetRoleEffort = defineTool({
       card: cardLabel(card),
       efforts: outcome.applied,
       total: { before: num(card.raw.Effort), after: num(after.data.Effort) },
+      totalsNote: TOTALS_NOTE,
       parent: parentChange(parentBefore, parentAfter),
       ...(notPersisted.length ? { notPersisted } : {}),
     })
@@ -621,7 +625,7 @@ export const writeCreateCard = defineTool({
     if (newId === undefined) return failure(`Created a ${resource.name} but the response carried no Id`, undefined, { response: created.data })
     const done: unknown[] = [{ created: { id: newId, type: resource.name } }]
 
-    const removedDefaults: ReturnType<typeof describeAssignment>[] = []
+    const removedDefaults: (ReturnType<typeof describeAssignment> & { late?: boolean })[] = []
     if (catalog.member(resource, 'Assignments')) {
       const defaults = await listAssignments(ctx, newId)
       if (!defaults.ok) return partial(`Created ${resource.name} ${newId} but could not read its default assignments`, defaults, done)
@@ -648,6 +652,22 @@ export const writeCreateCard = defineTool({
       const outcome = await applyRoleEfforts(ctx, newId, roleEffortRows(fresh.data), efforts)
       if (outcome.error) return partial(`Created ${resource.name} ${newId}; ${outcome.error.message}`, outcome.error.error, [...done, ...outcome.applied])
       done.push(...outcome.applied.map((e) => ({ effort: e })))
+    }
+
+    // Targetprocess can add default assignments after the first check: look again and remove them.
+    if (catalog.member(resource, 'Assignments')) {
+      for (const wait of ctx.settleDelaysMs) {
+        await new Promise((resolve) => setTimeout(resolve, wait))
+        const now = await listAssignments(ctx, newId)
+        if (!now.ok) break
+        for (const a of now.data) {
+          if (assignees.some((x) => x.user.Id === a.user.id && x.role.Id === a.role.id)) continue
+          const del = await removeAssignment(ctx, a.id)
+          if (!del.ok) return partial(`Created ${resource.name} ${newId} but could not remove late default assignment ${a.user.name} as ${a.role.name}`, del, done)
+          removedDefaults.push({ ...describeAssignment(a), late: true })
+          done.push({ removedDefault: describeAssignment(a), late: true })
+        }
+      }
     }
 
     // ---- read back and verify
@@ -692,6 +712,7 @@ export const writeCreateCard = defineTool({
       created: { id: newId, type: resource.name, name: args.name },
       card: shapeCard(shapedInfo, raw),
       removedDefaultAssignments: removedDefaults,
+      ...(efforts.length ? { totalsNote: TOTALS_NOTE } : {}),
       ...(parentAfter || parentBefore ? { parent: parentChange(parentBefore, parentAfter) } : {}),
       ...verdict({ notPersisted, notVerified: common.notVerified }),
     })

@@ -206,3 +206,16 @@ describe('admin_undelete', () => {
     expect((await h.call('admin_undelete', { items: [{ id: 8, entityType: 'Comment' }] })).text).toMatch(/cannot be undeleted/)
   })
 })
+
+describe('full history without Changes (live: only returned when included)', () => {
+  it('derives the changed fields from the IsChanged flags', async () => {
+    const stub = new FetchStub()
+      .get('/api/v1/Generals/36512', general(36512, 'UserStory'))
+      .get('/api/v1/UserStoryHistories', {
+        Items: [{ Id: 231001, Date: '/Date(0)/', Modification: 'Update', IsChangedEntityState: true, IsChangedModifyDate: true, IsChangedCreateDate: true, IsChangedName: false, EntityState: { Id: 683, Name: 'Estimated' } }],
+      })
+    h = await harness({ stub })
+    const r = await h.call('read_history', { id: 36512, full: true })
+    expect(r.json.entries[0]).toMatchObject({ changed: ['EntityState'], values: { EntityState: 'Estimated' } })
+  })
+})

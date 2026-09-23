@@ -246,14 +246,18 @@ takes base64 content only; pounce never reads local files for upload.
    its `RoleEffort` rows. `write_set_role_effort` writes the rows. Nothing writes
    the card `Effort` field except `write_update` on explicit request. If no role
    is named, the tool errors and asks for one.
-2. **Task efforts roll up.** TP rolls a task's role efforts into its parent user
-   story, overwriting the story's value for that role. Writing a task's effort
-   must report the parent's before/after values rather than claiming the story
-   estimate was kept.
+2. **Task efforts roll up.** TP recomputes the parent story's role efforts when
+   a task's role effort changes (**live**: story Developer 8 → 7 → 5 as its task
+   went 1h → 3h, story total unchanged). Writing a task's effort must report the
+   parent's before/after values rather than claiming the story estimate was
+   kept. Totals are recomputed a few seconds after a write (**live**), so totals
+   read right after it can lag; say so.
 3. **Default assignments are cleared on creation.** After creating a card, read
    its assignments, remove those TP added by default, then add the requested
-   people. Report what was removed. On pre-existing cards, never remove anyone
-   unless explicitly asked.
+   people. TP can add a default **after** the first check (**live**: a bug got its
+   default Product Owner a moment later), so look again after a short pause
+   (`settleDelaysMs`) and remove late ones too (`late: true`). Report what was
+   removed. On pre-existing cards, never remove anyone unless explicitly asked.
 4. **Parent state can move.** Moving a child task out of its initial state can
    advance the parent story. `write_set_state` and `write_create_card` read the
    parent's state before and after, and report any change.
@@ -367,16 +371,17 @@ from the instance, never hardcoded.
 | Nested create | e.g. story with `"Tasks":{"Items":[...]}` in one POST | docs |
 | Set collections | `"Assignments"`, `"AssignedTeams"`, `"RoleEfforts"` as `{"Items":[...]}` on the card POST. **POST appends; to replace, DELETE the existing items first** | docs |
 | Tags | `"Tags":"a,b"` replaces all tags; `"TagObjects":[{"Name":...}]` or `[{"Id":...}]` adds | docs |
-| Custom fields | By name (`"MyField": value`) or `"CustomFields":[{"Name","Value"}]`; entity-type fields take `{"Id","Kind"}` | docs; used by old server |
+| Custom fields | By name (`"MyField": value`) or `"CustomFields":[{"Name","Value"}]`; entity-type fields take `{"Id","Kind"}`. System fields (`IsSystem`, e.g. "Total Hours") are refused with a 400 that fails the **whole** write, so pounce refuses them before sending | `CustomFields` array **live**; entity form docs |
+| Time tracking | `POST /api/v1/Times` answers 400 "Time is not available for current process" where the process has time tracking off (**live**, process 13) | **live** |
 | Response shaping on write | `resultFormat`, `resultInclude`, `resultExclude`, `resultAppend` | docs |
 | Bulk create/update | `POST /api/v1/{Plural}/bulk` with an array, **≤ 500 items** | route **live** (400 on `[]`), docs |
 | Delete | `DELETE /api/v1/{Plural}/{id}` → 200, 404 if missing | docs; used by old server |
 | Bulk delete | `DELETE /api/v1/{Plural}/bulk` with `[{"Id":..}]`; by id only | docs |
-| Remove from collection | `DELETE /api/v1/{Plural}/{id}/{Collection}?childrenIds=1,2` or `.../{Collection}/{childId}` | docs |
-| Upload attachment | `POST /UploadFile.ashx`, multipart, fields `generalId` + one or more `file` | docs |
+| Remove from collection | `DELETE /api/v1/{Plural}/{id}/{Collection}/{childId}`, one per child. The documented `?childrenIds=1,2` form answers **500** (**live**) | **live** |
+| Upload attachment | `POST /UploadFile.ashx`, multipart, fields `generalId` + one or more `file`; works with an access token | **live** |
 | Download attachment | `GET /Attachment.aspx?AttachmentID={id}` needs Basic or cookie auth. **With a PAT it returns an HTML error page, not the file** | **live** (limitation confirmed) |
 | History (simple) | `/api/v1/{Plural}/{id}/History`, `{Entity}SimpleHistories` (v1 and v2). Only records state/effort/release/iteration changes | **live** |
-| History (full) | `{Entity}Histories` (v1/v2) and `/api/history/v2/{Entity}`, with `IsChanged{Field}` flags and a `Changes` list; also for Extendable Domain types. Filter by `SourceEntityId` (v1) / `sourceEntityId` (history v2); there is no `UserStory` reference on `UserStoryHistory` | **live** |
+| History (full) | `{Entity}Histories` (v1/v2) and `/api/history/v2/{Entity}`, with `IsChanged{Field}` flags and a `Changes` list (**only returned when explicitly included**; use the flags); also for Extendable Domain types. Filter by `SourceEntityId` (v1) / `sourceEntityId` (history v2); there is no `UserStory` reference on `UserStoryHistory` | **live** |
 | Conversions | `GET /api/v1/GeneralConversions` (`FromGeneralID`, `ActualGeneral`) | **live** |
 | Deleted items | `GET /api/v2/projects` or `/users` with `where=(DeleteDate!=null)&includeDeleted=true`. The v2 `next` link **drops** `includeDeleted`: page with your own `skip` and repeat every parameter | **live** |
 | Undelete | `POST /api/v1/undelete` `{"Id","EntityType"}` and `/api/v1/undelete/bulk`. **Administrator token required** — ours is not. Comments, milestones and programs cannot be undeleted | docs |
@@ -396,17 +401,21 @@ from the instance, never hardcoded.
 - **Attachment download**: blocked with PAT auth (above). Add it only if a Basic-auth
   or cookie option is introduced deliberately.
 
-Write shapes used by pounce that are inferred from the metadata (the resources
-allow create/update/delete) rather than shown in the docs; confirm each on a test
-card during the live acceptance run:
+Write shapes inferred from the metadata rather than shown in the docs, and
+their live status (test story #36512, 2026-09-23):
 
-- `POST /api/v1/RoleEfforts/{id}` `{Effort}` and `POST /api/v1/RoleEfforts`
-  `{Assignable, Role, Effort}` (role effort rows)
-- `POST /api/v1/TeamAssignments/{id}` `{EntityState}` and `DELETE /api/v1/TeamAssignments/{id}`
-- `POST /api/v1/GeneralFollowers` `{General, User}` and `DELETE /api/v1/GeneralFollowers/{id}`
-- `"Tags": ""` clearing every tag; `Time.Date` sent as `YYYY-MM-DD`
-- Whether deleting a user story also deletes its tasks (`delete_card` requires
-  `withChildren: true` either way)
+- **live:** `POST /api/v1/RoleEfforts/{id}` `{Effort}` (row update);
+  `POST /api/v1/TeamAssignments/{id}` `{EntityState}` and
+  `DELETE /api/v1/TeamAssignments/{id}`; `POST /api/v1/GeneralFollowers`
+  `{General, User}` and `DELETE /api/v1/GeneralFollowers/{id}`;
+  `POST /api/v1/Assignments` and `DELETE /api/v1/Assignments/{id}`;
+  `"Tags": ""` clearing every tag; `POST /api/v1/{Plural}/bulk` updates; test plan runs
+  and `TestCaseRuns` `{Status, Comment}`; `UploadFile.ashx` with an access token.
+- **not yet exercised:** `POST /api/v1/RoleEfforts` `{Assignable, Role, Effort}`
+  (creating a missing row; cards came with a row per role); `Time.Date` as
+  `YYYY-MM-DD` (time tracking is off in our process); whether deleting a user
+  story also deletes its tasks (`delete_card` requires `withChildren: true`
+  either way).
 
 Unresolved: the docs also show `/api/deletedItems/v1/{projects|users}/{id}/restore`,
 but `GET /api/deletedItems/v1/projects` returns 404 on our instance. Prefer
@@ -422,8 +431,11 @@ confirmed findings are fixed with regression tests.
 
 Remaining:
 
-1. **Live acceptance run** (`tests/live/acceptance.test.ts`) against a user story
-   the user names. It reproduces the #36410 batch in one pass: state Ready, two
+1. **Live acceptance run.** Done interactively on test story #36512 under
+   feature #36193 (2026-09-23): every workflow tool that can act on a story and
+   its children, plus the generic tools, ran against the live instance; the bugs
+   it found are fixed and re-verified live. The scripted twin
+   (`tests/live/acceptance.test.ts`) runs against a user story the user names. It reproduces the #36410 batch in one pass: state Ready, two
    Developers + a Product Owner, role efforts, clear BackEnd / set FrontEnd, a
    task in Coded with Core Team, 1h Developer effort and one assignee, a bug
    assigned to one person, default assignments removed, parent state reported.

@@ -121,7 +121,7 @@ describe('catalog coverage', () => {
             tool(r, 'remove'),
             { resource: r.name, id: 1, collection: c.name, childIds: [2] },
             'DELETE',
-            `/api/v1/${r.path}/1/${c.name}`,
+            `/api/v1/${r.path}/1/${c.name}/2`,
           )
           if (!res.ok) failures.push(`${tool(r, 'remove')} ${r.name}.${c.name}: ${res.text}`)
         }

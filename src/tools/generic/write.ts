@@ -103,7 +103,13 @@ export async function removeFromCollection(
   if (!coll.value.canRemove) return invalid(`items cannot be removed from ${r.name}.${coll.value.name}`)
 
   const result = await ctx.v1.removeFromCollection(r.path, args.id, coll.value.name, args.childIds)
-  if (!result.ok) return failure(`Could not remove from ${r.name} ${args.id} ${coll.value.name}`, result)
+  if (!result.ok) {
+    return failure(
+      `Could not remove from ${r.name} ${args.id} ${coll.value.name}`,
+      result,
+      result.removed.length ? { alreadyRemoved: result.removed } : undefined,
+    )
+  }
   return success({ removed: args.childIds, resource: r.name, id: args.id, collection: coll.value.name })
 }
 

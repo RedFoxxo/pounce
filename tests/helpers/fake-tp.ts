@@ -77,6 +77,9 @@ export class FakeTp {
   private nextId = 50_000
   /** Default assignment Targetprocess adds on creation: Giorgio Verdi (16) as Product Owner (7). */
   defaultAssignment: { user: number; role: number } | undefined = { user: 16, role: 7 }
+  /** Add the default assignment only after the first time the new card's assignments are listed (as live). */
+  lateDefaults = false
+  private pendingLate = new Map<number, { user: number; role: number }>()
   /** Rejects the next write matching this path with the given status. */
   failNext?: { method: string; path: RegExp; status: number; message: string }
 
@@ -190,9 +193,16 @@ export class FakeTp {
       return card ? { ...general(card.Id, card.type, TYPE_ID[card.type]), Name: card.Name } : error(404, 'not found')
     })
 
-    s.get('/api/v1/Assignments', (call: StubCall) => ({
-      Items: this.assignments.filter((a) => a.card === whereId(call, 'Assignable.Id')).map((a) => this.assignmentJson(a)),
-    }))
+    s.get('/api/v1/Assignments', (call: StubCall) => {
+      const card = whereId(call, 'Assignable.Id')
+      const items = this.assignments.filter((a) => a.card === card).map((a) => this.assignmentJson(a))
+      const late = card !== undefined ? this.pendingLate.get(card) : undefined
+      if (late && card !== undefined) {
+        this.pendingLate.delete(card)
+        this.assignments.push({ Id: this.id(), card, ...late })
+      }
+      return { Items: items }
+    })
     s.on({
       method: 'POST',
       path: '/api/v1/Assignments',
@@ -291,7 +301,8 @@ export class FakeTp {
           const f = card.CustomFields.find((x) => x.Name === cf.Name)
           if (f) f.Value = cf.Value
         }
-        if (this.defaultAssignment) this.assignments.push({ Id: this.id(), card: card.Id, ...this.defaultAssignment })
+        if (this.defaultAssignment && this.lateDefaults) this.pendingLate.set(card.Id, this.defaultAssignment)
+        else if (this.defaultAssignment) this.assignments.push({ Id: this.id(), card: card.Id, ...this.defaultAssignment })
         return reply({ ResourceType: type, Id: card.Id, Name: card.Name })
       },
     })

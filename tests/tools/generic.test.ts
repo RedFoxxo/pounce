@@ -238,11 +238,11 @@ describe('collections', () => {
     expect(r.text).toMatch(/cannot be added to UserStory.Bugs/)
   })
 
-  it('delete_collection_remove sends childrenIds', async () => {
-    h = await harness({ stub: new FetchStub().delete('/api/v1/TestPlans/234/TestCases', '') })
+  it('delete_collection_remove deletes each child by path', async () => {
+    h = await harness({ stub: new FetchStub().delete(/^\/api\/v1\/TestPlans\/234\/TestCases\/\d+$/, '') })
     const r = await h.call('delete_collection_remove', { resource: 'TestPlan', id: 234, collection: 'TestCases', childIds: [1234, 1235] })
     expect(r.isError).toBe(false)
-    expect(h.stub.calls[0]!.query.get('childrenIds')).toBe('1234,1235')
+    expect(h.stub.calls.map((c) => c.path)).toEqual(['/api/v1/TestPlans/234/TestCases/1234', '/api/v1/TestPlans/234/TestCases/1235'])
   })
 })
 

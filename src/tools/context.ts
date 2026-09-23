@@ -16,6 +16,11 @@ export interface ToolContext {
   catalog: () => Promise<Catalog>
   /** Cached reference data for resolving names (users, roles, teams, projects, states, custom fields). */
   directory: Directory
+  /**
+   * Pauses (ms) before re-checking a new card for assignments Targetprocess adds
+   * after creation (live: a default Product Owner appeared after the first check).
+   */
+  settleDelaysMs: number[]
   log: Logger
 }
 
@@ -24,6 +29,7 @@ export interface ContextOptions {
   log?: Logger
   /** Override the catalog (tests). Defaults to the live catalog with snapshot fallback. */
   catalog?: () => Promise<Catalog>
+  settleDelaysMs?: number[]
 }
 
 export function createContext(config: Config, options: ContextOptions = {}): ToolContext {
@@ -37,5 +43,14 @@ export function createContext(config: Config, options: ContextOptions = {}): Too
     provider.start()
     catalog = () => provider.get()
   }
-  return { config, http, v1, v2: new V2Client(http), catalog, directory: new Directory(v1), log }
+  return {
+    config,
+    http,
+    v1,
+    v2: new V2Client(http),
+    catalog,
+    directory: new Directory(v1),
+    settleDelaysMs: options.settleDelaysMs ?? [1000, 2000],
+    log,
+  }
 }

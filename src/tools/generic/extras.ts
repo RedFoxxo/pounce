@@ -63,8 +63,16 @@ export const readDeleted = defineTool({
 
 // ---------------------------------------------------------------- history
 
+/** Bookkeeping fields Targetprocess flags on nearly every record. */
+const HISTORY_NOISE = new Set(['ModifyDate', 'CreateDate', 'CreateDateOffset'])
+
 function historyEntry(raw: Raw) {
-  const changes = typeof raw.Changes === 'string' ? raw.Changes.split(',').map((c) => c.trim()).filter((c) => c && c !== 'ModifyDate') : []
+  // `Changes` is only returned when explicitly included; the IsChanged{Field} flags always are.
+  const listed = typeof raw.Changes === 'string' ? raw.Changes.split(',').map((c) => c.trim()) : []
+  const flagged = Object.entries(raw)
+    .filter(([k, v]) => k.startsWith('IsChanged') && v === true)
+    .map(([k]) => k.slice('IsChanged'.length))
+  const changes = [...new Set([...listed, ...flagged])].filter((c) => c && !(HISTORY_NOISE.has(c) && raw.Modification !== 'Add'))
   const values: Record<string, unknown> = {}
   for (const field of changes) {
     const v = raw[field]

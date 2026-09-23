@@ -164,10 +164,21 @@ describe('V1Client writes', () => {
     expect(call.query.get('resultInclude')).toBe('[Id,Name]')
   })
 
-  it('removeFromCollection sends childrenIds', async () => {
-    const stub = new FetchStub().delete('/api/v1/UserStories/5/Assignments', '')
-    await client(stub).removeFromCollection('UserStories', 5, 'Assignments', [7, 8])
-    expect(stub.calls[0]!.query.get('childrenIds')).toBe('7,8')
+  it('removeFromCollection deletes each child by path (the ?childrenIds= form answers 500 live)', async () => {
+    const stub = new FetchStub().delete(/^\/api\/v1\/UserStories\/5\/Assignments\/\d+$/, '')
+    const r = await client(stub).removeFromCollection('UserStories', 5, 'Assignments', [7, 8])
+    expect(stub.calls.map((c) => c.path)).toEqual(['/api/v1/UserStories/5/Assignments/7', '/api/v1/UserStories/5/Assignments/8'])
+    expect(r.ok && r.data.removed).toEqual([7, 8])
+  })
+
+  it('removeFromCollection reports the children removed before a failure', async () => {
+    const stub = new FetchStub()
+      .delete('/api/v1/UserStories/5/Assignments/7', '')
+      .delete('/api/v1/UserStories/5/Assignments/8', { Message: 'boom' }, { status: 500 })
+    const r = await client(stub).removeFromCollection('UserStories', 5, 'Assignments', [7, 8, 9])
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.removed).toEqual([7])
+    expect(stub.calls).toHaveLength(2)
   })
 
   it('deleteBulk sends [{Id}]', async () => {

@@ -1,6 +1,6 @@
 import { normalizeV1Dates } from '../format/dates.js'
 import type { HttpCore, Query } from './core.js'
-import { ok, type Result } from './result.js'
+import { ok, type Err, type Ok, type Result } from './result.js'
 
 /** A v1 collection page, as Targetprocess sends it. Only this module reads `Items`/`Next`. */
 interface V1Page<T> {
@@ -188,13 +188,25 @@ export class V1Client {
     })
   }
 
-  /** DELETE items from an inner collection: `/{collection}/{id}/{inner}?childrenIds=1,2`. */
-  async removeFromCollection(collection: string, id: number, inner: string, childIds: number[]): Promise<Result<unknown>> {
-    return this.http.request({
-      method: 'DELETE',
-      path: v1Path(collection, id, inner),
-      query: { format: 'json', childrenIds: childIds.join(',') },
-    })
+  /**
+   * DELETE items from an inner collection, one `/{collection}/{id}/{inner}/{childId}`
+   * per child. The documented `?childrenIds=1,2` form answers 500 on a live
+   * instance; the path form works. Stops at the first failure and reports the
+   * children already removed.
+   */
+  async removeFromCollection(
+    collection: string,
+    id: number,
+    inner: string,
+    childIds: number[],
+  ): Promise<Ok<{ removed: number[] }> | (Err & { removed: number[] })> {
+    const removed: number[] = []
+    for (const child of childIds) {
+      const r = await this.http.request({ method: 'DELETE', path: v1Path(collection, id, inner, child), query: { format: 'json' } })
+      if (!r.ok) return { ...r, removed }
+      removed.push(child)
+    }
+    return ok({ removed })
   }
 
   /** POST any path below `/api/v1` (e.g. `undelete`). */

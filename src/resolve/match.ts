@@ -58,7 +58,8 @@ export function match<T>(input: string | number, spec: MatchSpec<T>): Resolved<T
   const q = norm(raw)
   if (!q) return { ok: false, reason: 'none', message: `Empty ${spec.kind} name.` }
 
-  const exact = spec.items.filter((item) => spec.keys(item).some((k) => k && norm(k) === q))
+  // Exact matches, by key priority: a hit on the first key (the name) beats a hit on a later one (an abbreviation).
+  const exact = exactByPriority(q, spec, spec.items)
   if (exact.length === 1) return { ok: true, value: exact[0] as T }
   if (exact.length > 1) return ambiguous(spec, raw, exact)
 
@@ -85,6 +86,18 @@ export function match<T>(input: string | number, spec: MatchSpec<T>): Resolved<T
     message: `No ${spec.kind} matches "${raw}".` + (close.length ? ` Did you mean: ${close.map((c) => `${c.name} (${c.id})`).join(', ')}?` : ''),
     ...(close.length ? { candidates: close } : {}),
   }
+}
+
+function exactByPriority<T>(q: string, spec: MatchSpec<T>, items: T[]): T[] {
+  const width = Math.max(0, ...items.map((item) => spec.keys(item).length))
+  for (let k = 0; k < width; k++) {
+    const hits = items.filter((item) => {
+      const key = spec.keys(item)[k]
+      return key ? norm(key) === q : false
+    })
+    if (hits.length) return hits
+  }
+  return []
 }
 
 function ambiguous<T>(spec: MatchSpec<T>, raw: string, items: T[]): Resolved<T> {
@@ -120,9 +133,7 @@ function distance(a: string, b: string): number {
 export function matchActive<T>(input: string | number, spec: MatchSpec<T>, isActive: (item: T) => boolean): Resolved<T> {
   const raw = String(input).trim()
   const q = norm(raw)
-  const exact = /^\d+$/.test(raw)
-    ? spec.items.filter((item) => spec.id(item) === Number(raw))
-    : spec.items.filter((item) => spec.keys(item).some((k) => k && norm(k) === q))
+  const exact = /^\d+$/.test(raw) ? spec.items.filter((item) => spec.id(item) === Number(raw)) : exactByPriority(q, spec, spec.items)
   if (exact.length > 0) {
     const active = exact.filter(isActive)
     if (active.length === 1) return { ok: true, value: active[0] as T }
