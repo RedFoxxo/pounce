@@ -26,7 +26,8 @@ Version 1.0.0. See [CHANGELOG.md](CHANGELOG.md).
   **Access Tokens** → create one
 
 Nothing to download or build: your MCP client starts pounce with `npx`, which
-fetches the package from npm on first use.
+fetches [`@redfoxxo/pounce`](https://www.npmjs.com/package/@redfoxxo/pounce) from
+npm on first use. `@1` keeps you on 1.x releases.
 
 ## Configuration
 
@@ -55,7 +56,7 @@ Add the server and the four permission rules to `opencode.json` (global:
   "mcp": {
     "pounce": {
       "type": "local",
-      "command": ["npx", "-y", "pounce@1"],
+      "command": ["npx", "-y", "@redfoxxo/pounce@1"],
       "enabled": true,
       "environment": {
         "TP_BASE_URL": "https://yourcompany.tpondemand.com",
@@ -85,7 +86,7 @@ environment when the server starts, so the token is not stored in the config:
 claude mcp add-json pounce --scope user '{
   "type": "stdio",
   "command": "npx",
-  "args": ["-y", "pounce@1"],
+  "args": ["-y", "@redfoxxo/pounce@1"],
   "env": {
     "TP_BASE_URL": "https://yourcompany.tpondemand.com",
     "TP_TOKEN": "${TP_TOKEN}"
@@ -119,7 +120,7 @@ Any client that starts local (stdio) servers works. Most accept an
   "mcpServers": {
     "pounce": {
       "command": "npx",
-      "args": ["-y", "pounce@1"],
+      "args": ["-y", "@redfoxxo/pounce@1"],
       "env": {
         "TP_BASE_URL": "https://yourcompany.tpondemand.com",
         "TP_TOKEN": "your-access-token"
@@ -206,3 +207,7 @@ escape hatch that reaches every resource and operation your instance reports.
 
 Building from source, running the tests and releasing are described in
 [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## License
+
+[MIT](LICENSE)

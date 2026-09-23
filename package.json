@@ -1,5 +1,5 @@
 {
-  "name": "pounce",
+  "name": "@redfoxxo/pounce",
   "version": "1.0.0",
   "description": "MCP server for Targetprocess: read and manage cards by name, with your team rules enforced and every write verified",
   "keywords": [
@@ -13,6 +13,14 @@
     "opencode"
   ],
   "author": "Foxxo",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RedFoxxo/pounce.git"
+  },
+  "homepage": "https://github.com/RedFoxxo/pounce#readme",
+  "bugs": {
+    "url": "https://github.com/RedFoxxo/pounce/issues"
+  },
   "type": "module",
   "main": "build/index.js",
   "bin": {
@@ -21,7 +29,8 @@
   "files": [
     "build/**/*.js",
     "build/**/*.json",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=22.12"
@@ -34,8 +43,7 @@
     "snapshot": "npm run build && node build/catalog/snapshot-cli.js",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
-  "license": "UNLICENSED",
-  "private": true,
+  "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
     "zod": "4.6.5"
@@ -44,5 +52,8 @@
     "@types/node": "22.20.4",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

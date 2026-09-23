@@ -17,7 +17,8 @@ if (!result.ok) {
 const resources = result.data.resources
 const listed = resources.filter((r) => r.listed)
 const collections = resources.flatMap((r) => r.collections)
-writeFileSync('src/catalog/snapshot.json', `${JSON.stringify(result.data, null, 1)}\n`)
+// The snapshot ships in the package: never record which instance it came from.
+writeFileSync('src/catalog/snapshot.json', `${JSON.stringify({ ...result.data, instance: 'baseline snapshot' }, null, 1)}\n`)
 process.stdout.write(
   `snapshot: ${listed.length} listed (${listed.filter((r) => !r.available).length} unavailable), ` +
     `${resources.length - listed.length} unlisted, ${collections.length} collections, ` +

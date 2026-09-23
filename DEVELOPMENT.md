@@ -76,5 +76,8 @@ Optional: `TP_LIVE_BUG_ASSIGNEE` (defaults to the first developer) and
 2. Commit on `main`; `npm run typecheck`, `npm test` and `npm run build` must pass.
 3. Fast-forward `stable` to `main` and tag the release: `git tag v<version>`.
 4. Push `main`, `stable` and the tag.
-5. `npm publish` (runs typecheck, tests and build first via `prepublishOnly`).
-   Check the contents beforehand with `npm pack --dry-run`.
+5. `npm publish` publishes `@redfoxxo/pounce` publicly (`publishConfig`), after
+   running typecheck, tests and build via `prepublishOnly`. Check the contents
+   beforehand with `npm pack --dry-run`.
+6. Create the GitHub release from the tag: `gh release create v<version>` with the
+   changelog entry as notes.
