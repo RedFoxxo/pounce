@@ -103,7 +103,10 @@ export async function parentChain(ctx: ToolContext, raw: Raw, maxDepth = 5): Pro
     let resource = parent.resourceType ? catalog.find(parent.resourceType) : undefined
     if (!resource || resource.name === 'General' || resource.name === 'Assignable') {
       const info = await cardInfo(ctx, parent.id)
-      if (!info.ok) break
+      if (!info.ok) {
+        chain.push(compact({ id: parent.id, type: parent.resourceType, name: parent.name }) as ParentLink)
+        break
+      }
       resource = info.value.resource
     }
     const fields = ['Id', 'Name', 'EntityState[Id,Name]', ...PARENT_REFS.filter((p) => has(catalog, resource, p)).map((p) => `${p}[Id,Name]`)]

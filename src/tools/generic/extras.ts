@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { htmlToText } from '../../format/html.js'
 import { compact, num, person, ref } from '../../format/shape.js'
 import { cardInfo } from '../../resolve/card.js'
 import { unresolved } from '../workflow/common.js'
@@ -68,7 +69,7 @@ function historyEntry(raw: Raw) {
   for (const field of changes) {
     const v = raw[field]
     if (v === undefined) continue
-    values[field] = v && typeof v === 'object' ? ref(v)?.name ?? ref(v)?.id ?? v : v
+    values[field] = v && typeof v === 'object' ? ref(v)?.name ?? ref(v)?.id ?? v : typeof v === 'string' && /<[A-Za-z/][^>]*>/.test(v) ? htmlToText(v) : v
   }
   return compact({ id: num(raw.Id), date: raw.Date, modification: raw.Modification, by: person(raw.Modifier), changed: changes, values: Object.keys(values).length ? values : undefined })
 }
@@ -91,7 +92,8 @@ function simpleEntry(raw: Raw) {
 export const readHistory = defineTool({
   name: 'read_history',
   description:
-    'Change history of an entity, oldest first. Simple history (default) records state, effort, release and iteration changes; full: true ' +
+    'Change history of an entity, oldest first (when capped, the most recent entries are kept). Simple history (default) records state, ' +
+    'effort, release and iteration changes; full: true ' +
     'returns every change with the changed fields and their new values. resource is resolved from the id for cards; pass it for other entities (e.g. Comment).',
   input: { id, resource: resourceArg.optional(), full: z.boolean().optional(), limit: limit(200, 5000) },
   handler: async (args, ctx) => {
@@ -110,18 +112,18 @@ export const readHistory = defineTool({
     if (args.full) {
       const hist = catalog.find(`${r.name}Histories`)
       if (!hist?.available) return invalid(`${r.name} has no full history resource (${r.name}Histories) on this instance`)
-      const res = await ctx.v1.list<Raw>(hist.path, { where: `(SourceEntityId eq ${args.id})`, orderBy: 'Date', limit: max })
+      const res = await ctx.v1.list<Raw>(hist.path, { where: `(SourceEntityId eq ${args.id})`, orderByDesc: 'Date', limit: max })
       if (!res.ok) return failure(`Could not read the full history of ${r.name} ${args.id}`, res)
-      return success({ resource: r.name, id: args.id, kind: 'full', count: res.data.items.length, truncated: res.data.truncated, entries: res.data.items.map(historyEntry) })
+      return success({ resource: r.name, id: args.id, kind: 'full', count: res.data.items.length, truncated: res.data.truncated, entries: [...res.data.items].reverse().map(historyEntry) })
     }
     const inner = r.collections.some((c) => c.name === 'History')
     const simple = catalog.find(`${r.name}SimpleHistories`)
     if (!inner && !simple?.available) return invalid(`${r.name} has no simple history; try full: true`)
     const res = inner
-      ? await ctx.v1.list<Raw>(`${r.path}/${args.id}/History`, { orderBy: 'Date', limit: max })
-      : await ctx.v1.list<Raw>(simple!.path, { where: `(${r.name}.Id eq ${args.id})`, orderBy: 'Date', limit: max })
+      ? await ctx.v1.list<Raw>(`${r.path}/${args.id}/History`, { orderByDesc: 'Date', limit: max })
+      : await ctx.v1.list<Raw>(simple!.path, { where: `(${r.name}.Id eq ${args.id})`, orderByDesc: 'Date', limit: max })
     if (!res.ok) return failure(`Could not read the history of ${r.name} ${args.id}`, res)
-    return success({ resource: r.name, id: args.id, kind: 'simple', count: res.data.items.length, truncated: res.data.truncated, entries: res.data.items.map(simpleEntry) })
+    return success({ resource: r.name, id: args.id, kind: 'simple', count: res.data.items.length, truncated: res.data.truncated, entries: [...res.data.items].reverse().map(simpleEntry) })
   },
 })
 
@@ -270,16 +272,25 @@ export const writeAttachment = defineTool({
       names.push(f.name)
       form.append('file', new Blob([bytes], { type: f.mimeType ?? 'application/octet-stream' }), f.name)
     }
+    // Existing attachments first, so an older file with the same name cannot pass for a failed upload.
+    const listAttachments = () => ctx.v1.list<Raw>('Attachments', { where: `(General.Id eq ${args.id})`, include: '[Id,Name,Date]', limit: 20_000 })
+    const before = await listAttachments()
+    if (!before.ok) return failure(`Could not read the attachments of ${args.id}; nothing was uploaded`, before)
+    const known = new Set(before.data.items.map((a) => num(a.Id)))
     const r = await ctx.http.request<string>({ method: 'POST', path: '/UploadFile.ashx', form, expect: 'text' })
     if (!r.ok) return failure(`Could not upload to ${args.id}`, r)
-    const back = await ctx.v1.list<Raw>('Attachments', { where: `(General.Id eq ${args.id})`, include: '[Id,Name,Date]', orderByDesc: 'Date', limit: 200 })
-    const present = back.ok ? back.data.items : []
-    const missing = names.filter((n) => !present.some((a) => a.Name === n))
+    const back = await listAttachments()
+    const fresh = back.ok ? back.data.items.filter((a) => !known.has(num(a.Id))) : []
+    const missing = [...names]
+    for (const a of fresh) {
+      const i = missing.indexOf(String(a.Name))
+      if (i >= 0) missing.splice(i, 1)
+    }
     return success({
       card: args.id,
       uploaded: names,
-      attachments: present.filter((a) => names.includes(String(a.Name))).map((a) => ({ id: num(a.Id), name: a.Name })),
-      ...(back.ok && missing.length ? { notPersisted: missing.map((n) => `${n} is not among the card's attachments`) } : {}),
+      attachments: fresh.filter((a) => names.includes(String(a.Name))).map((a) => ({ id: num(a.Id), name: a.Name })),
+      ...(back.ok && missing.length ? { notPersisted: missing.map((n) => `${n} did not appear as a new attachment`) } : {}),
       ...(!back.ok ? { warning: `Could not read attachments back: ${back.message}` } : {}),
     })
   },

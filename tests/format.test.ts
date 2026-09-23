@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { htmlToText } from '../src/format/html.js'
+import { htmlToText, textToHtml } from '../src/format/html.js'
 
 describe('htmlToText', () => {
   it('turns blocks into lines and decodes entities', () => {
@@ -23,5 +23,19 @@ describe('htmlToText', () => {
   it('handles empty values', () => {
     expect(htmlToText(null)).toBe('')
     expect(htmlToText('<div></div>')).toBe('')
+  })
+
+  it('decodes Latin-1 entities with exact case', () => {
+    expect(htmlToText('<div>&Ograve; &ograve; &oacute; &ntilde; &ccedil; &szlig; &frac12; &sup2; &euro;</div>')).toBe('Ò ò ó ñ ç ß ½ ² €')
+    expect(htmlToText('<div>&unknown; &amp;</div>')).toBe('&unknown; &')
+  })
+
+  it('keeps newlines of plain text and <pre> blocks', () => {
+    expect(htmlToText('line one\nline two')).toBe('line one\nline two')
+    expect(htmlToText('<p>Code:</p><pre>a = 1\nb = 2</pre>')).toBe('Code:\na = 1\nb = 2')
+  })
+
+  it('round-trips blank paragraphs written by textToHtml', () => {
+    expect(htmlToText(textToHtml('first\n\nsecond'))).toBe('first\n\nsecond')
   })
 })

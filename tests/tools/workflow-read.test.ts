@@ -308,3 +308,72 @@ describe('per-card reads', () => {
     expect(r.json.runs).toEqual([])
   })
 })
+
+describe('review regressions (read)', () => {
+  const found = { Items: [{ Id: 1, Name: 'x', EntityState: { Name: 'In Progress' }, EntityType: { Name: 'UserStory' } }] }
+
+  it('read_search resolves the state name and refuses unknown ones with suggestions', async () => {
+    const stub = withReferenceData(new FetchStub().get('/api/v1/UserStories', found))
+    h = await harness({ stub })
+    const bad = await h.call('read_search', { type: 'UserStory', state: 'In Progres' })
+    expect(bad.text).toMatch(/No UserStory state is named "In Progres". Did you mean: In Progress/)
+    expect(h.stub.find('GET', '/api/v1/UserStories')).toHaveLength(0)
+    await h.call('read_search', { type: 'UserStory', state: 'in progress' })
+    expect(h.stub.find('GET', '/api/v1/UserStories')[0]!.query.get('where')).toBe("(EntityState.Name eq 'In Progress')")
+  })
+
+  it('bare digits search both the id and the name', async () => {
+    const stub = new FetchStub()
+      .get('/api/v1/Assignables', { Items: [{ Id: 2026, Name: 'by id' }] }, { query: (q) => (q.get('where') ?? '').startsWith('(Id eq 2026)') })
+      .get('/api/v1/Assignables', { Items: [{ Id: 7, Name: 'Plan 2026' }] })
+    h = await harness({ stub })
+    const r = await h.call('read_search', { text: '2026' })
+    expect(r.json.cards.map((c: { id: number }) => c.id)).toEqual([2026, 7])
+  })
+
+  it('reads accept inactive people (a colleague who left)', async () => {
+    h = await harness({ stub: withReferenceData(new FetchStub().get('/api/v1/Times', { Items: [] })) })
+    const r = await h.call('read_times', { user: 'Rocco Amico' })
+    expect(r.isError, r.text).toBe(false)
+    expect(h.stub.find('GET', '/api/v1/Times')[0]!.query.get('where')).toBe('(User.Id eq 2429)')
+  })
+
+  it('read_comments keeps the newest when capped, shown oldest first', async () => {
+    const c = (Id: number) => ({ Id, Description: `c${Id}`, CreateDate: '/Date(0)/' })
+    h = await harness({ stub: new FetchStub().get('/api/v1/Comments', { Next: 'x', Items: [c(3), c(2)] }) })
+    const r = await h.call('read_comments', { id: 1, limit: 2 })
+    expect(h.stub.calls[0]!.query.get('orderByDesc')).toBe('CreateDate')
+    expect(r.json.comments.map((x: { id: number }) => x.id)).toEqual([2, 3])
+    expect(r.json.truncated).toBe(true)
+  })
+
+  it('flags inner collections that hit the 1000 cap', async () => {
+    const many = { Items: Array.from({ length: 1000 }, (_, i) => ({ Id: i })) }
+    h = await harness({ stub: new FetchStub().get('/api/v1/UserStories/5', { Id: 5, Tasks: many }) })
+    const r = await h.call('read_get', { resource: 'UserStory', id: 5, include: 'Tasks' })
+    expect(r.json.innerCapped).toEqual(['Tasks'])
+  })
+
+  it('read_times says when totals are partial', async () => {
+    h = await harness({ stub: new FetchStub().get('/api/v1/Times', { Next: 'x', Items: [{ Id: 1, Spent: 1 }] }) })
+    const r = await h.call('read_times', { id: 5, limit: 1 })
+    expect(r.json.totalsPartial).toMatch(/only the returned entries/)
+  })
+
+  it('the parent chain keeps a parent it cannot open', async () => {
+    const stub = new FetchStub()
+      .get('/api/v1/Generals/10', general(10, 'TestPlan', 13))
+      .get('/api/v1/TestPlans/10', { Id: 10, Name: 'Plan', LinkedGeneral: { ResourceType: 'General', Id: 99, Name: 'Secret story' } })
+      .get('/api/v1/Generals/99', { Message: 'access is forbidden' }, { status: 403 })
+    h = await harness({ stub })
+    const r = await h.call('read_card', { id: 10 })
+    expect(r.json.parents).toEqual([{ id: 99, type: 'General', name: 'Secret story' }])
+  })
+
+  it('read_iterations refuses team and project together; people filters ignore accents', async () => {
+    h = await harness({ stub: withReferenceData(new FetchStub()) })
+    expect((await h.call('read_iterations', { team: 'Core Team', project: 'SBP' })).text).toMatch(/not both/)
+    const r = await h.call('read_people', { query: 'GIÒRGIO' })
+    expect(r.json.people.map((p: { id: number }) => p.id)).toEqual([16])
+  })
+})

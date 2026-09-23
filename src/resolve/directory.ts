@@ -140,8 +140,10 @@ export class Directory {
         where: `(Process.Id eq ${processId}) and (EntityType.Name eq ${v1String(entityType)})`,
         include: '[Id,Name,IsInitial,IsFinal,IsPlanned,NumericPriority,Workflow[Id,Name,ParentWorkflow],ParentEntityState[Id,Name],Role[Id,Name],EntityType[Id,Name]]',
         orderBy: 'NumericPriority',
+        limit: DIRECTORY_LIMIT,
       })
       if (!r.ok) return r
+      if (r.data.truncated) return err(r.status, `More than ${DIRECTORY_LIMIT} ${entityType} states; cannot resolve reliably`)
       return ok(r.data.items, r.status)
     })
   }
@@ -151,9 +153,25 @@ export class Directory {
       const r = await this.v1.list<TpCustomField>('CustomFields', {
         where: `(Process.Id eq ${processId}) and (EntityType.Name eq ${v1String(entityType)})`,
         include: '[Id,Name,FieldType,Value,Required,EntityType[Id,Name],Process[Id,Name]]',
+        limit: DIRECTORY_LIMIT,
       })
       if (!r.ok) return r
+      if (r.data.truncated) return err(r.status, `More than ${DIRECTORY_LIMIT} ${entityType} custom fields; cannot resolve reliably`)
       return ok(r.data.items, r.status)
+    })
+  }
+
+  /** Distinct state names of an entity type across every process (or of every type), for search filters. */
+  stateNames(entityType?: string): Promise<Result<string[]>> {
+    return this.cached(`statenames:${entityType ?? '*'}`, async () => {
+      const r = await this.v1.list<{ Name?: string }>('EntityStates', {
+        ...(entityType ? { where: `(EntityType.Name eq ${v1String(entityType)})` } : {}),
+        include: '[Name]',
+        limit: DIRECTORY_LIMIT,
+      })
+      if (!r.ok) return r
+      if (r.data.truncated) return err(r.status, `More than ${DIRECTORY_LIMIT} states; cannot check the state name`)
+      return ok([...new Set(r.data.items.map((x) => x.Name).filter((n): n is string => Boolean(n)))], r.status)
     })
   }
 
@@ -163,7 +181,11 @@ export class Directory {
 
   // ---- resolvers ---------------------------------------------------------
 
-  async user(input: string | number): Promise<Resolved<TpUser>> {
+  /**
+   * Resolves a person. Inactive people are refused unless `allowInactive`
+   * (reads, and removing someone who has left).
+   */
+  async user(input: string | number, options: { allowInactive?: boolean } = {}): Promise<Resolved<TpUser>> {
     const r = await this.users()
     if (!r.ok) return { ok: false, reason: 'error', message: 'Could not load users', error: r }
     const spec = {
@@ -173,7 +195,7 @@ export class Directory {
       keys: (u: TpUser) => [fullName(u), `${u.LastName ?? ''} ${u.FirstName ?? ''}`, u.Login, u.Email, u.FirstName, u.LastName],
       describe: (u: TpUser) => ({ login: u.Login, ...(isActiveUser(u) ? {} : { inactive: true }) }),
     }
-    return matchActive(input, { ...spec, items: r.data }, isActiveUser)
+    return matchActive(input, { ...spec, items: r.data }, options.allowInactive ? () => true : isActiveUser)
   }
 
   async me(): Promise<Resolved<TpUser>> {
@@ -187,11 +209,11 @@ export class Directory {
     return match(input, { kind: 'role', items: r.data, id: (x) => x.Id, name: (x) => x.Name, keys: (x) => [x.Name] })
   }
 
-  async team(input: string | number): Promise<Resolved<TpTeam>> {
+  async team(input: string | number, options: { allowInactive?: boolean } = {}): Promise<Resolved<TpTeam>> {
     const r = await this.teams()
     if (!r.ok) return { ok: false, reason: 'error', message: 'Could not load teams', error: r }
     const spec = { kind: 'team', id: (x: TpTeam) => x.Id, name: (x: TpTeam) => x.Name, keys: (x: TpTeam) => [x.Name] }
-    return matchActive(input, { ...spec, items: r.data }, (t) => t.IsActive !== false)
+    return matchActive(input, { ...spec, items: r.data }, options.allowInactive ? () => true : (t) => t.IsActive !== false)
   }
 
   async project(input: string | number): Promise<Resolved<TpProject>> {

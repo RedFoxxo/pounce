@@ -33,7 +33,8 @@ export interface MatchSpec<T> {
   describe?: (item: T) => Record<string, unknown>
 }
 
-const norm = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
+/** Case-, accent- and whitespace-insensitive form used for every name comparison. */
+export const norm = (s: string) => s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ')
 
 function candidate<T>(spec: MatchSpec<T>, item: T): Candidate {
   return { id: spec.id(item), name: spec.name(item), ...spec.describe?.(item) }

@@ -153,6 +153,7 @@ describe('write_attachment', () => {
     h = await harness({
       stub: new FetchStub()
         .post('/UploadFile.ashx', '<html>ok</html>')
+        .get('/api/v1/Attachments', { Items: [] }, { times: 1 })
         .get('/api/v1/Attachments', { Items: [{ Id: 77, Name: 'notes.txt', Date: '/Date(0)/' }] }),
     })
     const r = await h.call('write_attachment', { id: 42, files: [{ name: 'notes.txt', contentBase64: Buffer.from('hello').toString('base64'), mimeType: 'text/plain' }] })
@@ -169,7 +170,14 @@ describe('write_attachment', () => {
   it('reports an upload that did not arrive', async () => {
     h = await harness({ stub: new FetchStub().post('/UploadFile.ashx', '').get('/api/v1/Attachments', { Items: [] }) })
     const r = await h.call('write_attachment', { id: 42, files: [{ name: 'a.bin', contentBase64: 'AA==' }] })
-    expect(r.json.notPersisted).toEqual(["a.bin is not among the card's attachments"])
+    expect(r.json.notPersisted).toEqual(['a.bin did not appear as a new attachment'])
+  })
+
+  it('an older attachment with the same name does not pass for a failed upload', async () => {
+    const old = { Items: [{ Id: 5, Name: 'a.bin', Date: '/Date(0)/' }] }
+    h = await harness({ stub: new FetchStub().post('/UploadFile.ashx', '').get('/api/v1/Attachments', old) })
+    const r = await h.call('write_attachment', { id: 42, files: [{ name: 'a.bin', contentBase64: 'AA==' }] })
+    expect(r.json.notPersisted).toEqual(['a.bin did not appear as a new attachment'])
   })
 
   it('takes base64 content only, never a local path', async () => {

@@ -43,8 +43,8 @@ function unverified(r: Err): { warning: string } {
   return { warning: `The write was sent but the card could not be read back to verify it (${r.message})` }
 }
 
-function resolvePerson(ctx: ToolContext, input: string | number): Promise<Resolved<TpUser>> {
-  return String(input).trim().toLowerCase() === 'me' ? ctx.directory.me() : ctx.directory.user(input)
+function resolvePerson(ctx: ToolContext, input: string | number, options: { allowInactive?: boolean } = {}): Promise<Resolved<TpUser>> {
+  return String(input).trim().toLowerCase() === 'me' ? ctx.directory.me() : ctx.directory.user(input, options)
 }
 
 function cardLabel(card: CardRead) {
@@ -74,7 +74,8 @@ export const writeSetState = defineTool({
     const parentBefore = await parentSnapshot(ctx, raw)
 
     if (args.team !== undefined) {
-      const team = await ctx.directory.team(args.team)
+      // A team already on the card may since have been deactivated; its state can still be set.
+      const team = await ctx.directory.team(args.team, { allowInactive: true })
       if (!team.ok) return unresolved(team)
       const assignment = items(raw.AssignedTeams).find((t) => ref(t.Team)?.id === team.value.Id)
       if (!assignment) {
@@ -202,7 +203,7 @@ export const writeUnassign = defineTool({
   description: 'Remove one exact assignment (person + role) from a card. If the person holds several roles on the card, the role is required.',
   input: { id, user: person, role: role.optional() },
   handler: async (args, ctx) => {
-    const user = await resolvePerson(ctx, args.user)
+    const user = await resolvePerson(ctx, args.user, { allowInactive: true })
     if (!user.ok) return unresolved(user)
     let roleId: number | undefined
     if (args.role !== undefined) {
@@ -334,7 +335,7 @@ export const writeTeam = defineTool({
       if (!current.some((c) => ref(c.Team)?.id === team.value.Id)) toAdd.push({ Id: team.value.Id, Name: team.value.Name })
     }
     for (const t of args.remove ?? []) {
-      const team = await ctx.directory.team(t)
+      const team = await ctx.directory.team(t, { allowInactive: true })
       if (!team.ok) return unresolved(team)
       const ta = current.find((c) => ref(c.Team)?.id === team.value.Id)
       if (!ta) return invalid(`${team.value.Name} is not assigned to ${card.info.entityType} ${card.info.id}`)
@@ -368,6 +369,73 @@ export const writeTeam = defineTool({
   },
 })
 
+// ---------------------------------------------------------------- shared verification
+
+interface Verdict {
+  notPersisted: string[]
+  /** Sent, but not present in any read-back, so neither confirmed nor refuted. */
+  notVerified: string[]
+}
+
+/**
+ * Checks what create and update both write: name, description, tags,
+ * release/iteration/team iteration, the parent link, and every extra field.
+ * Fields the card read does not include are read explicitly; anything still
+ * missing is listed as not verified rather than silently skipped.
+ */
+async function verifyWritten(
+  ctx: ToolContext,
+  info: CardRead['info'],
+  body: Record<string, unknown>,
+  after: Raw,
+  opts: { parentField?: string | undefined; parentId?: number | undefined; extraFields?: Record<string, unknown> },
+): Promise<Verdict> {
+  const v: Verdict = { notPersisted: [], notVerified: [] }
+  if (body.Name !== undefined && after.Name !== body.Name) v.notPersisted.push(`name: requested ${JSON.stringify(body.Name)}, got ${JSON.stringify(after.Name)}`)
+  if (body.Description !== undefined && htmlToText(String(after.Description ?? '')) !== htmlToText(String(body.Description))) {
+    v.notPersisted.push('description differs from what was sent')
+  }
+  if (body.Tags !== undefined) {
+    const got = (parseTags(after.Tags) ?? []).map((t) => t.toLowerCase()).sort().join(',')
+    const want = String(body.Tags).split(',').filter(Boolean).map((t) => t.toLowerCase()).sort().join(',')
+    if (got !== want) v.notPersisted.push(`tags: requested [${want}], got [${got}]`)
+  }
+  for (const key of ['Release', 'Iteration', 'TeamIteration']) {
+    if (!(key in body)) continue
+    if (!(key in after)) {
+      v.notVerified.push(key)
+      continue
+    }
+    const want = (body[key] as { Id: number } | null)?.Id ?? null
+    const got = ref(after[key])?.id ?? null
+    if (want !== got) v.notPersisted.push(`${key}: requested ${want}, got ${got}`)
+  }
+  if (opts.parentField === 'TestPlans') {
+    const plans = await ctx.v1.get<Raw>(info.resource.path, info.id, { include: '[Id,TestPlans[Id]]', innerTake: 1000 })
+    if (!plans.ok) v.notVerified.push(`test plan link (${plans.message})`)
+    else if (!items(plans.data.TestPlans).some((p) => num(p.Id) === opts.parentId)) v.notPersisted.push(`not in test plan ${opts.parentId}`)
+  } else if (opts.parentField) {
+    if (!(opts.parentField in after)) v.notVerified.push(opts.parentField)
+    else if (ref(after[opts.parentField])?.id !== opts.parentId) {
+      v.notPersisted.push(`${opts.parentField}: requested ${opts.parentId}, got ${ref(after[opts.parentField])?.id ?? null}`)
+    }
+  }
+  const extra = opts.extraFields ?? {}
+  const missing = Object.keys(extra).filter((k) => !(k in after))
+  let extraBack: Raw = after
+  if (missing.length) {
+    const r = await ctx.v1.get<Raw>(info.resource.path, info.id, { include: `[Id,${missing.join(',')}]` })
+    if (r.ok) extraBack = { ...after, ...r.data }
+  }
+  v.notPersisted.push(...unpersisted(extra, extraBack))
+  v.notVerified.push(...Object.keys(extra).filter((k) => !(k in extraBack)))
+  return v
+}
+
+function verdict(v: Verdict) {
+  return { ...(v.notPersisted.length ? { notPersisted: v.notPersisted } : {}), ...(v.notVerified.length ? { notVerified: v.notVerified } : {}) }
+}
+
 // ---------------------------------------------------------------- create
 
 const refOrNull = z.union([id, z.null()])
@@ -395,6 +463,12 @@ const RESERVED: Record<string, string> = {
   PortfolioEpic: 'parent',
   LinkedGeneral: 'parent',
   TestPlans: 'parent',
+  Tasks: 'write_create_card with parent (children get the creation rules)',
+  Bugs: 'write_create_card with parent (children get the creation rules)',
+  UserStories: 'write_create_card with parent (children get the creation rules)',
+  Features: 'write_create_card with parent (children get the creation rules)',
+  Epics: 'write_create_card with parent (children get the creation rules)',
+  TestCases: 'write_test_cases',
 }
 
 function reservedFields(fields: Record<string, unknown>): string | undefined {
@@ -446,6 +520,7 @@ export const writeCreateCard = defineTool({
     // ---- resolve everything before posting
     const body: Record<string, unknown> = { Name: args.name }
     let parentRef: { id: number; resourceType: string } | undefined
+    let parentField: string | undefined
     let parentProject: { id: number; name: string } | undefined
     if (args.parent !== undefined) {
       const p = await cardInfo(ctx, args.parent)
@@ -455,6 +530,7 @@ export const writeCreateCard = defineTool({
       Object.assign(body, link.body)
       parentProject = p.value.project
       parentRef = { id: p.value.id, resourceType: p.value.entityType }
+      parentField = link.field
     }
 
     let projectId: number | undefined
@@ -576,10 +652,19 @@ export const writeCreateCard = defineTool({
 
     // ---- read back and verify
     const final = await readCardAs(ctx, info)
-    if (!final.ok) return partial(`Created ${resource.name} ${newId} but could not read it back`, final, done)
+    if (!final.ok) {
+      // Every write succeeded; only the check failed. Not an error: a retry would create a duplicate.
+      const parentAfter = await snapshotAgain(ctx, parentBefore)
+      return success({
+        created: { id: newId, type: resource.name, name: args.name },
+        done,
+        removedDefaultAssignments: removedDefaults,
+        ...(parentBefore ? { parent: parentChange(parentBefore, parentAfter) } : {}),
+        ...unverified(final),
+      })
+    }
     const raw = final.data
     const notPersisted: string[] = []
-    if (raw.Name !== args.name) notPersisted.push(`name: requested ${JSON.stringify(args.name)}, got ${JSON.stringify(raw.Name)}`)
     if (ref(raw.Project)?.id !== projectId) notPersisted.push(`project: requested ${projectId}, got ${ref(raw.Project)?.id}`)
     const wantedState = (body.EntityState as { Id: number } | undefined)?.Id
     if (wantedState !== undefined && ref(raw.EntityState)?.id !== wantedState) notPersisted.push(`state: got ${ref(raw.EntityState)?.name}`)
@@ -598,8 +683,8 @@ export const writeCreateCard = defineTool({
     const teamIdsAfter = items(raw.AssignedTeams).map((t) => ref(t.Team)?.id)
     for (const t of teamIds) if (!teamIdsAfter.includes(t.Id)) notPersisted.push(`team ${t.Name ?? t.Id} is not on the card`)
     notPersisted.push(...unpersistedCustomFields(customFields, raw.CustomFields))
-    if (args.description !== undefined && htmlToText(String(raw.Description ?? '')) !== htmlToText(String(body.Description))) notPersisted.push('description differs from what was sent')
-    notPersisted.push(...unpersisted(extraFields, raw))
+    const common = await verifyWritten(ctx, info, body, raw, { parentField, parentId: parentRef?.id, extraFields })
+    notPersisted.push(...common.notPersisted)
 
     const parentAfter = await snapshotAgain(ctx, parentBefore)
     const shapedInfo = { ...info, project: ref(raw.Project) ? { id: ref(raw.Project)!.id, name: ref(raw.Project)!.name ?? '' } : info.project }
@@ -608,7 +693,7 @@ export const writeCreateCard = defineTool({
       card: shapeCard(shapedInfo, raw),
       removedDefaultAssignments: removedDefaults,
       ...(parentAfter || parentBefore ? { parent: parentChange(parentBefore, parentAfter) } : {}),
-      ...(notPersisted.length ? { notPersisted } : {}),
+      ...verdict({ notPersisted, notVerified: common.notVerified }),
     })
   },
 })
@@ -686,34 +771,13 @@ export const writeUpdateCard = defineTool({
     const reread = await reload(ctx, card)
     if (!reread.ok) return success({ card: cardLabel(card), updated: Object.keys(body), ...(removedTags.length ? { removedTags } : {}), ...unverified(reread) })
     const after = reread.data
-    const notPersisted: string[] = []
-    if (body.Name !== undefined && after.Name !== body.Name) notPersisted.push(`name: got ${JSON.stringify(after.Name)}`)
-    if (body.Description !== undefined && htmlToText(String(after.Description ?? '')) !== htmlToText(String(body.Description))) notPersisted.push('description differs from what was sent')
-    if (body.Tags !== undefined) {
-      const got = (parseTags(after.Tags) ?? []).map((t) => t.toLowerCase()).sort().join(',')
-      const want = String(body.Tags).split(',').filter(Boolean).map((t) => t.toLowerCase()).sort().join(',')
-      if (got !== want) notPersisted.push(`tags: requested [${want}], got [${got}]`)
-    }
-    for (const key of ['Release', 'Iteration', 'TeamIteration']) {
-      if (key in body) {
-        const want = (body[key] as { Id: number } | null)?.Id ?? null
-        const got = ref(after[key])?.id ?? null
-        if (want !== got) notPersisted.push(`${key}: requested ${want}, got ${got}`)
-      }
-    }
-    if (parentField === 'TestPlans') {
-      const plans = await ctx.v1.get<Raw>(card.info.resource.path, card.info.id, { include: '[Id,TestPlans[Id]]', innerTake: 1000 })
-      if (plans.ok && !items(plans.data.TestPlans).some((p) => num(p.Id) === args.parent)) notPersisted.push(`not in test plan ${args.parent}`)
-    } else if (parentField && ref(after[parentField])?.id !== args.parent) {
-      notPersisted.push(`${parentField}: requested ${args.parent}, got ${ref(after[parentField])?.id ?? null}`)
-    }
-    notPersisted.push(...unpersisted(extraFields, after))
+    const checked = await verifyWritten(ctx, card.info, body, after, { parentField, parentId: args.parent, extraFields })
     return success({
       card: cardLabel(card),
       updated: Object.keys(body),
       ...(removedTags.length ? { removedTags } : {}),
       now: shapeCard(card.info, after),
-      ...(notPersisted.length ? { notPersisted } : {}),
+      ...verdict(checked),
     })
   },
 })
@@ -912,8 +976,14 @@ export const writeTestCases = defineTool({
       if (back.ok) {
         if (!items(back.data.TestPlans).some((p) => num(p.Id) === args.testPlan)) notPersisted.push('not linked to the test plan')
         if (items(back.data.TestSteps).length !== (c.steps?.length ?? 0)) notPersisted.push(`steps: sent ${c.steps?.length ?? 0}, found ${items(back.data.TestSteps).length}`)
-      } else notPersisted.push('could not read the test case back')
-      created.push({ id: caseId, name: c.name, steps: c.steps?.length ?? 0, ...(notPersisted.length ? { notPersisted } : {}) })
+      }
+      created.push({
+        id: caseId,
+        name: c.name,
+        steps: c.steps?.length ?? 0,
+        ...(notPersisted.length ? { notPersisted } : {}),
+        ...(!back.ok ? { warning: `created, but could not be read back to verify (${back.message})` } : {}),
+      })
     }
     return success({ testPlan: { id: args.testPlan, name: plan.value.name }, created })
   },

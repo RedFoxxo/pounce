@@ -531,3 +531,48 @@ describe('review regressions', () => {
     expect(r.text).toMatch(/the POST may or may not have been applied, so check before retrying/)
   })
 })
+
+describe('review regressions (write, round 2)', () => {
+  it('extra fields outside the card read are read explicitly, or listed as not verified', async () => {
+    const { tp } = world()
+    tp.stub.first({ method: 'GET', path: '/api/v1/UserStories/36216', query: { include: '[Id,PlannedStartDate]' }, body: { Id: 36216 } })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_update_card', { id: 36216, fields: { PlannedStartDate: '2026-10-01' } })
+    expect(r.isError, r.text).toBe(false)
+    expect(r.json.notVerified).toEqual(['PlannedStartDate'])
+  })
+
+  it('child card collections in fields are refused', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_create_card', { type: 'UserStory', name: 'S', parent: 36193, fields: { Tasks: [{ Name: 't', Effort: 5 }] } })
+    expect(r.text).toContain('Tasks → use write_create_card with parent')
+    expect(h.stub.writes).toHaveLength(0)
+  })
+
+  it('a create whose read-back fails is still a success, with a warning', async () => {
+    const { tp } = world()
+    tp.stub.first({ method: 'GET', path: /^\/api\/v1\/Tasks\/5\d{4}$/, body: new StubReply(500, { Message: 'boom' }) })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_create_card', { type: 'Task', name: 'T', parent: 36216 })
+    expect(r.isError).toBe(false)
+    expect(r.json.created.id).toEqual(expect.any(Number))
+    expect(r.json.warning).toMatch(/could not be read back/)
+  })
+
+  it('an inactive person can still be unassigned', async () => {
+    const { tp } = world()
+    tp.assignments.push({ Id: 777, card: 36216, user: 2429, role: 13 })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_unassign', { id: 36216, user: 'Rocco Amico' })
+    expect(r.isError, r.text).toBe(false)
+    expect(r.json.removed.user).toBe('Rocco Amico (2429)')
+  })
+
+  it('an inactive person cannot be newly assigned', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_assign', { id: 36216, user: 'Rocco Amico', role: 'Developer' })
+    expect(r.text).toMatch(/inactive or deleted/)
+  })
+})

@@ -1,12 +1,13 @@
 import { z } from 'zod'
 import type { CatalogResource } from '../../catalog/types.js'
+import { INNER_CAP, innerCapNote } from '../../format/shape.js'
 import { failure, invalid, success } from '../respond.js'
 import { bracket, id, include, limit, resource } from '../schema.js'
 import { defineTool } from '../types.js'
 import { isAdminResource, READ_ONLY_IN_PRACTICE } from './policy.js'
 
 /** Inner collections are capped at 25 unless asked; ask for the maximum. */
-export const INNER_TAKE = 1000
+export const INNER_TAKE = INNER_CAP
 
 const QUERY_DEFAULT = 500
 const QUERY_MAX = 5000
@@ -107,7 +108,8 @@ export const readGet = defineTool({
       innerTake: INNER_TAKE,
     })
     if (!result.ok) return failure(`Could not read ${r.name} ${args.id}`, result)
-    return success(result.data)
+    const note = innerCapNote(result.data)
+    return success(Object.keys(note).length ? { ...(result.data as Record<string, unknown>), ...note } : result.data)
   },
 })
 
@@ -131,7 +133,7 @@ export const readQuery = defineTool({
       limit: args.limit ?? QUERY_DEFAULT,
     })
     if (!result.ok) return failure(`Query on ${r.path} failed`, result)
-    return success({ resource: r.name, count: result.data.items.length, truncated: result.data.truncated, items: result.data.items })
+    return success({ resource: r.name, count: result.data.items.length, truncated: result.data.truncated, ...innerCapNote(result.data.items), items: result.data.items })
   },
 })
 
@@ -168,6 +170,7 @@ export const readCollection = defineTool({
       collection: coll.value.name,
       count: result.data.items.length,
       truncated: result.data.truncated,
+      ...innerCapNote(result.data.items),
       items: result.data.items,
     })
   },

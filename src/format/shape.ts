@@ -93,3 +93,28 @@ export function cardSummary(raw: Record<string, unknown>) {
     modified: raw.ModifyDate,
   })
 }
+
+/** Inner collections are read with innerTake=1000; a collection that size may have been cut. */
+export const INNER_CAP = 1000
+
+/** Names of included inner collections that reached the cap, in one entity or a list of them. */
+export function cappedInner(value: unknown): string[] {
+  const out = new Set<string>()
+  const visit = (entity: unknown) => {
+    if (!isRecord(entity)) return
+    for (const [key, v] of Object.entries(entity)) {
+      if (isRecord(v) && Array.isArray(v.Items) && v.Items.length >= INNER_CAP) out.add(key)
+    }
+  }
+  if (Array.isArray(value)) value.forEach(visit)
+  else visit(value)
+  return [...out]
+}
+
+/** `{innerCapped: [...]}` when any included collection may be incomplete; `{}` otherwise. */
+export function innerCapNote(value: unknown): { innerCapped?: string[]; innerCappedNote?: string } {
+  const capped = cappedInner(value)
+  return capped.length
+    ? { innerCapped: capped, innerCappedNote: `these inner collections returned ${INNER_CAP} items and may be incomplete; read them with read_collection` }
+    : {}
+}

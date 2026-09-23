@@ -1,9 +1,10 @@
 import { z } from 'zod'
 import { parentChain, readCardRaw, shapeCard } from '../../domain/cards.js'
-import { cardSummary, compact, items, num, person, ref, text } from '../../format/shape.js'
+import { cardSummary, compact, innerCapNote, items, num, person, ref, text } from '../../format/shape.js'
 import { v1String } from '../../http/v1.js'
 import { customFieldOptions, fullName, isActiveUser, isTeamWorkflowState } from '../../resolve/directory.js'
-import { match } from '../../resolve/match.js'
+import { match, norm } from '../../resolve/match.js'
+import { suggestions } from '../../catalog/catalog.js'
 import type { ToolContext } from '../context.js'
 import { failure, invalid, success } from '../respond.js'
 import { id } from '../schema.js'
@@ -25,7 +26,7 @@ export const readCard = defineTool({
     const card = await readCardRaw(ctx, cardId)
     if (!card.ok) return card.error ? failure(card.message, card.error) : invalid(card.message)
     const parents = await parentChain(ctx, card.value.raw)
-    return success(shapeCard(card.value.info, card.value.raw, parents))
+    return success({ ...shapeCard(card.value.info, card.value.raw, parents), ...innerCapNote(card.value.raw) })
   },
 })
 
@@ -49,10 +50,22 @@ async function searchCards(ctx: ToolContext, args: SearchArgs, extra: Record<str
   const where: string[] = []
 
   const t = args.text?.trim()
-  if (t) where.push(/^#?\d+$/.test(t) ? `(Id eq ${t.replace('#', '')})` : `(Name contains ${v1String(t)})`)
+  // "#123" is an id; bare digits are searched both as an id and as name text.
+  const idText = /^#\d+$/.test(t ?? '') ? Number(t!.slice(1)) : undefined
+  const alsoId = /^\d+$/.test(t ?? '') ? Number(t) : undefined
+  if (idText !== undefined) where.push(`(Id eq ${idText})`)
+  else if (t) where.push(`(Name contains ${v1String(t)})`)
   if (args.state) {
     if (!has('EntityState')) return invalid(`${r.name} has no state`)
-    where.push(`(EntityState.Name eq ${v1String(args.state)})`)
+    const names = await ctx.directory.stateNames(['Assignable', 'General'].includes(r.name) ? undefined : r.name)
+    if (!names.ok) return failure('Could not load state names', names)
+    const wanted = norm(args.state)
+    const hit = names.data.find((n) => norm(n) === wanted)
+    if (!hit) {
+      const close = suggestions(args.state, names.data, 6)
+      return invalid(`No ${r.name === 'Assignable' ? '' : `${r.name} `}state is named "${args.state}".${close.length ? ` Did you mean: ${close.join(', ')}?` : ''}`)
+    }
+    where.push(`(EntityState.Name eq ${v1String(hit)})`)
   }
   if (args.project !== undefined) {
     const project = await ctx.directory.project(args.project)
@@ -61,7 +74,7 @@ async function searchCards(ctx: ToolContext, args: SearchArgs, extra: Record<str
   }
   if (args.assignee !== undefined) {
     if (!has('AssignedUser')) return invalid(`${r.name} cannot be filtered by assignee`)
-    const user = String(args.assignee).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.assignee)
+    const user = String(args.assignee).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.assignee, { allowInactive: true })
     if (!user.ok) return unresolved(user)
     where.push(`(AssignedUser.Id eq ${user.value.Id})`)
   }
@@ -72,24 +85,39 @@ async function searchCards(ctx: ToolContext, args: SearchArgs, extra: Record<str
   if (!args.includeClosed && has('EntityState') && !args.state) where.push(`(EntityState.IsFinal eq 'false')`)
 
   const include = ['Id', 'Name', 'EntityType[Name]', 'EntityState[Name]', 'Project[Name]', 'Tags', 'ModifyDate'].filter((f) => has(f.split('[')[0] as string))
-  const result = await ctx.v1.list<Raw>(r.path, {
-    ...(where.length ? { where: where.join(' and ') } : {}),
-    include: `[${include.join(',')}]`,
-    ...(has('ModifyDate') ? { orderByDesc: 'ModifyDate' } : {}),
-    limit: args.limit ?? 50,
-  })
+  const query = (clauses: string[]) =>
+    ctx.v1.list<Raw>(r.path, {
+      ...(clauses.length ? { where: clauses.join(' and ') } : {}),
+      include: `[${include.join(',')}]`,
+      ...(has('ModifyDate') ? { orderByDesc: 'ModifyDate' } : {}),
+      limit: args.limit ?? 50,
+    })
+  const result = await query(where)
   if (!result.ok) return failure('Search failed', result)
-  const cards = result.data.items.map(cardSummary)
+  let found = result.data.items
+  if (alsoId !== undefined) {
+    const byId = await query([`(Id eq ${alsoId})`, ...where.filter((w) => !w.startsWith('(Name contains'))])
+    if (!byId.ok) return failure('Search by id failed', byId)
+    found = [...byId.data.items, ...found.filter((c) => c.Id !== alsoId)]
+  }
+  const cards = found.map(cardSummary)
   const byState: Record<string, number> = {}
   for (const c of cards) if (typeof c.state === 'string') byState[c.state] = (byState[c.state] ?? 0) + 1
-  return success({ ...extra, count: cards.length, truncated: result.data.truncated, byState, cards })
+  return success({
+    ...extra,
+    count: cards.length,
+    truncated: result.data.truncated,
+    byState,
+    ...(result.data.truncated ? { totalsPartial: 'byState counts only the returned cards' } : {}),
+    cards,
+  })
 }
 
 export const readSearch = defineTool({
   name: 'read_search',
   description:
-    'Find cards by text in the name (or #id), type, state, project, assignee ("me" for yourself) and tag. Open cards only unless includeClosed. ' +
-    'Names are resolved; ambiguous names are listed, never guessed. Newest-modified first.',
+    'Find cards by text in the name (or #id; bare digits match the id and the name), type, state, project, assignee ("me" for yourself) and ' +
+    'tag. Open cards only unless includeClosed. Names and states are resolved; ambiguous names are listed, never guessed. Newest-modified first.',
   input: {
     text: z.string().optional().describe('Text contained in the card name, or a #id'),
     type: z.string().optional().describe('Entity type, e.g. UserStory, Task, Bug, Feature (default: any assignable card)'),
@@ -193,9 +221,9 @@ export const readPeople = defineTool({
     if (!users.ok) return failure('Could not load users', users)
     let pool = args.includeInactive ? users.data : users.data.filter(isActiveUser)
     if (args.query?.trim()) {
-      const words = args.query.trim().toLowerCase().split(/\s+/)
+      const words = norm(args.query).split(' ')
       pool = pool.filter((u) => {
-        const hay = [fullName(u), u.Login, u.Email].filter(Boolean).join(' ').toLowerCase()
+        const hay = norm([fullName(u), u.Login, u.Email].filter(Boolean).join(' '))
         return words.every((w) => hay.includes(w))
       })
     }
@@ -211,8 +239,8 @@ export const readPeople = defineTool({
 })
 
 function filterByName<T extends { Name: string }>(list: T[], query?: string): T[] {
-  const q = query?.trim().toLowerCase()
-  return q ? list.filter((x) => x.Name.toLowerCase().includes(q)) : list
+  const q = query?.trim() ? norm(query) : ''
+  return q ? list.filter((x) => norm(x.Name).includes(q)) : list
 }
 
 export const readTeams = defineTool({
@@ -245,9 +273,9 @@ export const readProjects = defineTool({
   handler: async (args, ctx) => {
     const projects = await ctx.directory.projects()
     if (!projects.ok) return failure('Could not load projects', projects)
-    const q = args.query?.trim().toLowerCase()
+    const q = args.query?.trim() ? norm(args.query) : ''
     const list = (args.includeInactive ? projects.data : projects.data.filter((p) => p.IsActive !== false)).filter(
-      (p) => !q || p.Name.toLowerCase().includes(q) || (p.Abbreviation ?? '').toLowerCase() === q,
+      (p) => !q || norm(p.Name).includes(q) || norm(p.Abbreviation ?? '') === q,
     )
     return success({
       count: list.length,
@@ -298,17 +326,18 @@ export const readIterations = defineTool({
     'Without team or project: current team iterations of every team.',
   input: { team: nameOrId.optional(), project: nameOrId.optional(), currentOnly: z.boolean().optional(), limit: listLimit(50, 1000) },
   handler: async (args, ctx) => {
+    if (args.project !== undefined && args.team !== undefined) return invalid('pass team (team iterations) or project (project iterations), not both')
     const where: string[] = []
     let path = 'TeamIterations'
     let include = '[Id,Name,StartDate,EndDate,IsCurrent,Team[Id,Name]]'
-    if (args.project !== undefined && args.team === undefined) {
+    if (args.project !== undefined) {
       const project = await ctx.directory.project(args.project)
       if (!project.ok) return unresolved(project)
       path = 'Iterations'
       include = '[Id,Name,StartDate,EndDate,IsCurrent,Project[Id,Name]]'
       where.push(`(Project.Id eq ${project.value.Id})`)
     } else if (args.team !== undefined) {
-      const team = await ctx.directory.team(args.team)
+      const team = await ctx.directory.team(args.team, { allowInactive: true })
       if (!team.ok) return unresolved(team)
       where.push(`(Team.Id eq ${team.value.Id})`)
     }
@@ -347,13 +376,14 @@ export const readCustomFieldOptions = defineTool({
 
 export const readComments = defineTool({
   name: 'read_comments',
-  description: 'Comments on a card, oldest first, as plain text, with author and reply parent.',
+  description: 'Comments on a card, oldest first, as plain text, with author and reply parent. When capped, the most recent comments are kept.',
   input: { id, limit: listLimit(200, 5000) },
   handler: async (args, ctx) => {
+    // Newest first so a cap drops the oldest, then shown oldest first.
     const r = await ctx.v1.list<Raw>('Comments', {
       where: `(General.Id eq ${args.id})`,
       include: '[Id,Description,CreateDate,Owner[Id,FirstName,LastName,Login],ParentId,IsPrivate,IsPinned]',
-      orderBy: 'CreateDate',
+      orderByDesc: 'CreateDate',
       limit: args.limit ?? 200,
     })
     if (!r.ok) return failure(`Could not read comments of ${args.id}`, r)
@@ -361,7 +391,7 @@ export const readComments = defineTool({
       card: args.id,
       count: r.data.items.length,
       truncated: r.data.truncated,
-      comments: r.data.items.map((c) =>
+      comments: [...r.data.items].reverse().map((c) =>
         compact({ id: num(c.Id), author: person(c.Owner), date: c.CreateDate, replyTo: num(c.ParentId), private: c.IsPrivate === true || undefined, pinned: c.IsPinned === true || undefined, text: text(c.Description) ?? '' }),
       ),
     })
@@ -408,7 +438,7 @@ export const readTimes = defineTool({
     const where: string[] = []
     if (args.id !== undefined) where.push(`(Assignable.Id eq ${args.id})`)
     if (args.user !== undefined) {
-      const user = String(args.user).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.user)
+      const user = String(args.user).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.user, { allowInactive: true })
       if (!user.ok) return unresolved(user)
       where.push(`(User.Id eq ${user.value.Id})`)
     }
@@ -426,7 +456,13 @@ export const readTimes = defineTool({
       compact({ id: num(t.Id), date: t.Date, spent: num(t.Spent), remain: num(t.Remain), user: person(t.User), role: ref(t.Role), card: ref(t.Assignable), description: text(t.Description) }),
     )
     const total = entries.reduce((sum, e) => sum + (e.spent ?? 0), 0)
-    return success({ count: entries.length, truncated: r.data.truncated, totalSpent: Math.round(total * 100) / 100, entries })
+    return success({
+      count: entries.length,
+      truncated: r.data.truncated,
+      totalSpent: Math.round(total * 100) / 100,
+      ...(r.data.truncated ? { totalsPartial: 'totalSpent covers only the returned entries' } : {}),
+      entries,
+    })
   },
 })
 
@@ -502,6 +538,7 @@ export const readTestPlan = defineTool({
           }),
         ),
         truncated: cases.data.truncated || undefined,
+        ...innerCapNote(cases.data.items),
         runs,
       }),
     )
