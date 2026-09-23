@@ -1,3 +1,4 @@
+import { sameDateValue } from '../format/dates.js'
 import { customFieldOptions, type TpCustomField } from '../resolve/directory.js'
 import type { Resolved } from '../resolve/match.js'
 import type { ToolContext } from '../tools/context.js'
@@ -80,11 +81,7 @@ function sameCustomValue(want: unknown, got: unknown): boolean {
     return gotUrl === want.Url
   }
   if (isRecord(want) && typeof want.Id === 'number') return isRecord(got) && got.Id === want.Id
-  if (typeof want === 'string' && /^\d{4}-\d{2}-\d{2}/.test(want) && typeof got === 'string') {
-    const a = Date.parse(want)
-    const b = Date.parse(got)
-    if (!Number.isNaN(a) && !Number.isNaN(b)) return Math.abs(a - b) < 24 * 3600 * 1000
-  }
+  if (typeof want === 'string' && /^\d{4}-\d{2}-\d{2}/.test(want) && typeof got === 'string') return sameDateValue(want, got)
   if (typeof want === 'string' && typeof got === 'string' && want.includes(',')) {
     const norm = (s: string) => s.split(',').map((x) => x.trim()).sort().join(',')
     return norm(want) === norm(got)

@@ -51,7 +51,7 @@ describe('read_get / read_query / read_collection', () => {
     h = await harness({ stub: new FetchStub().get('/api/v1/UserStories/36217', story) })
     const r = await h.call('read_get', { resource: 'UserStory', id: 36217, include: 'Id,Name,Project' })
     expect(r.isError).toBe(false)
-    expect(r.json.CreateDate).toBe('2026-09-11T11:21:27.000Z')
+    expect(r.json.CreateDate).toBe('2026-09-11T13:21:27.000+02:00')
     const q = h.stub.calls[0]!.query
     expect(q.get('include')).toBe('[Id,Name,Project]')
     expect(q.get('innerTake')).toBe('1000')

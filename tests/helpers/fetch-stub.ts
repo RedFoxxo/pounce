@@ -111,7 +111,7 @@ export class FetchStub {
     }
     route.used++
     if (route.networkError) throw new TypeError(route.networkError)
-    let payload = typeof route.body === 'function' ? (route.body as (c: StubCall) => unknown)(call) : route.body
+    let payload = await (typeof route.body === 'function' ? (route.body as (c: StubCall) => unknown)(call) : route.body)
     let status = route.status ?? 200
     if (payload instanceof StubReply) {
       status = payload.status

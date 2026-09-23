@@ -37,6 +37,16 @@ describe('loadConfig', () => {
   })
 
   it('rejects non-numeric ids', () => {
-    expect(() => loadConfig({ ...base, TP_DEFAULT_TEAM_ID: 'core' })).toThrow(/TP_DEFAULT_TEAM_ID must be a numeric id/)
+    expect(() => loadConfig({ ...base, TP_DEFAULT_TEAM_ID: 'core' })).toThrow(/TP_DEFAULT_TEAM_ID must be a positive numeric id/)
+  })
+
+  it('requires https except for localhost', () => {
+    expect(() => loadConfig({ ...base, TP_BASE_URL: 'http://example.tpondemand.com' })).toThrow(/must be an https URL/)
+    expect(loadConfig({ ...base, TP_BASE_URL: 'http://localhost:8080' }).baseUrl).toBe('http://localhost:8080')
+  })
+
+  it('rejects id 0 and unsafe integers', () => {
+    expect(() => loadConfig({ ...base, TP_DEFAULT_PROJECT_ID: '0' })).toThrow(/positive numeric id/)
+    expect(() => loadConfig({ ...base, TP_DEFAULT_PROJECT_ID: '99999999999999999999' })).toThrow(/positive numeric id/)
   })
 })

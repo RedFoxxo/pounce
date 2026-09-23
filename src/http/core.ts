@@ -1,5 +1,5 @@
 import type { Logger } from '../log.js'
-import { redact } from './redact.js'
+import { redact, redactToken } from './redact.js'
 import { err, ok, type Result } from './result.js'
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
@@ -97,22 +97,27 @@ export class HttpCore {
       text = await response.text()
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
-      return err(response.status, `Could not read the response body (${reason})`, '', shown)
+      const unknown =
+        spec.method === 'GET'
+          ? ''
+          : `; Targetprocess answered ${response.status}${response.ok ? ', so the write was most likely applied' : ''}: check before retrying`
+      return err(response.status, `Could not read the response body (${this.redact(reason)})${unknown}`, '', shown)
     }
-    text = this.redact(text)
+    // Bodies: only the exact token is removed. The query-parameter pattern would rewrite user content (links) and can corrupt JSON.
+    text = redactToken(text, this.token)
 
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('location') ?? ''
       return err(
         response.status,
         `Targetprocess redirected to ${this.redact(location) || 'another page'}; the endpoint or method is not supported`,
-        text,
+        capBody(text),
         shown,
       )
     }
 
     if (!response.ok) {
-      return err(response.status, errorMessage(response.status, text), text, shown)
+      return err(response.status, errorMessage(response.status, text), capBody(text), shown)
     }
 
     if (spec.expect === 'text') return ok(text as T, response.status)
@@ -124,11 +129,18 @@ export class HttpCore {
       return err(
         response.status,
         `Expected JSON from Targetprocess but got ${describeBody(text)}`,
-        text.slice(0, 2000),
+        capBody(text),
         shown,
       )
     }
   }
+}
+
+const BODY_CAP = 4000
+
+/** Error bodies go into tool output; an HTML error page must not flood it. */
+function capBody(text: string): string {
+  return text.length <= BODY_CAP ? text : `${text.slice(0, BODY_CAP)}… (${text.length - BODY_CAP} more characters)`
 }
 
 function decodeURIComponentSafe(url: string): string {

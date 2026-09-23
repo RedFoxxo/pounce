@@ -168,7 +168,7 @@ describe('custom field verification', () => {
     const back = [
       { Name: 'Rel', Value: { Id: 2, Kind: 'Release' } },
       { Name: 'Link', Value: { Url: 'https://x', Label: 'x' } },
-      { Name: 'Due', Value: '2026-09-22T22:00:00.000Z' },
+      { Name: 'Due', Value: '2026-09-23T00:00:00.000+02:00' },
       { Name: 'Multi', Value: 'b, a' },
     ]
     expect(

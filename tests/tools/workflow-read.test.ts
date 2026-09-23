@@ -90,7 +90,7 @@ describe('read_card', () => {
       roleEfforts: [{ id: 72324, role: { id: 13, name: 'Developer' }, effort: 8, completed: 0, toDo: 8 }],
       effort: { total: 8, toDo: 8 },
       tags: ['backend', 'oda'],
-      created: '2026-09-15T13:31:22.000Z',
+      created: '2026-09-15T15:31:22.000+02:00',
       description: 'Delivery date belongs on the ODA line, not on PurchaseOrder.',
       counts: { comments: 0, times: 0 },
     })
@@ -248,7 +248,7 @@ describe('per-card reads', () => {
     })
     const r = await h.call('read_comments', { id: 36507 })
     expect(h.stub.calls[0]!.query.get('where')).toBe('(General.Id eq 36507)')
-    expect(r.json.comments).toEqual([{ id: 33401, author: { id: 16, name: 'Giorgio Marchetti', login: 'g' }, date: '2026-09-23T11:13:46.000Z', text: 'Fatto!' }])
+    expect(r.json.comments).toEqual([{ id: 33401, author: { id: 16, name: 'Giorgio Marchetti', login: 'g' }, date: '2026-09-23T13:13:46.000+02:00', text: 'Fatto!' }])
   })
 
   it('read_relations merges both directions', async () => {

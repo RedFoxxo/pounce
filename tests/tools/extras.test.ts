@@ -17,7 +17,7 @@ describe('read_v2_query / read_deleted', () => {
     const r = await h.call('read_deleted', { kind: 'projects', limit: 5000 })
     expect(r.isError, r.text).toBe(false)
     expect(r.json).toMatchObject({ count: 1001, truncated: false })
-    expect(r.json.items[1000].deleteDate).toBe('2014-03-04T16:07:19.000Z')
+    expect(r.json.items[1000].deleteDate).toBe('2014-03-04T17:07:19.000+01:00')
     for (const call of h.stub.calls) {
       expect(call.query.get('includeDeleted')).toBe('true')
       expect(call.query.get('isoDate')).toBe('true')
@@ -61,7 +61,7 @@ describe('read_history', () => {
     h = await harness({ stub })
     const r = await h.call('read_history', { id: 36216 })
     expect(r.json.entries).toEqual([
-      { id: 230209, date: '2026-09-11T11:21:21.640Z', by: { id: 2286, name: 'Leszek Bielski', login: 'lbielski' }, state: 'Open', effort: 0, project: 'SBP' },
+      { id: 230209, date: '2026-09-11T13:21:21.640+02:00', by: { id: 2286, name: 'Leszek Bielski', login: 'lbielski' }, state: 'Open', effort: 0, project: 'SBP' },
     ])
   })
 

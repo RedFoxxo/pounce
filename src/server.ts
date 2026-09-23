@@ -21,7 +21,8 @@ export function createServer(ctx: ToolContext, tools: AnyToolDef[] = allTools())
         inputSchema: tool.input,
         annotations: {
           readOnlyHint: tier === 'read',
-          destructiveHint: tier === 'delete' || tier === 'admin',
+          // Writes overwrite fields and append to collections; only reads are harmless.
+          destructiveHint: tier !== 'read',
           openWorldHint: true,
         },
       },

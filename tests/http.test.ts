@@ -23,11 +23,14 @@ describe('redact', () => {
 
 describe('dates', () => {
   it('converts v1 dates to ISO 8601', () => {
-    expect(v1DateToIso('/Date(1789125687000+0200)/')).toBe('2026-09-11T11:21:27.000Z')
+    expect(v1DateToIso('/Date(1789125687000+0200)/')).toBe('2026-09-11T13:21:27.000+02:00')
+    // Local-midnight dates keep their calendar day.
+    expect(v1DateToIso('/Date(1789682400000+0200)/')).toBe('2026-09-18T00:00:00.000+02:00')
+    expect(Date.parse(v1DateToIso('/Date(1789682400000+0200)/'))).toBe(1789682400000)
     expect(v1DateToIso('not a date')).toBe('not a date')
     expect(normalizeV1Dates({ a: ['/Date(0)/'], b: { c: '/Date(0+0000)/' }, d: 1 })).toEqual({
       a: ['1970-01-01T00:00:00.000Z'],
-      b: { c: '1970-01-01T00:00:00.000Z' },
+      b: { c: '1970-01-01T00:00:00.000+00:00' },
       d: 1,
     })
   })
@@ -122,7 +125,7 @@ describe('V1Client.list', () => {
     if (!result.ok) return
     expect(result.data.items).toHaveLength(1002)
     expect(result.data.truncated).toBe(false)
-    expect(result.data.items[0]!.CreateDate).toBe('1970-01-01T00:00:00.000Z')
+    expect(result.data.items[0]!.CreateDate).toBe('1970-01-01T00:00:00.000+00:00')
     expect(stub.calls.map((c) => c.query.get('where'))).toEqual(["(IsActive eq 'true')", "(IsActive eq 'true')"])
   })
 
@@ -178,5 +181,42 @@ describe('innerItems', () => {
   it('reads included collections', () => {
     expect(innerItems({ Items: [1] })).toEqual([1])
     expect(innerItems(undefined)).toEqual([])
+  })
+})
+
+describe('review regressions (HTTP)', () => {
+  it('redaction never corrupts JSON bodies or rewrites user links', async () => {
+    const body = '{"Id":1,"Description":"<a href=\\"https://x.io/?token=abc\\">link</a>"}'
+    const stub = new FetchStub().get('/api/v1/Bugs/1', body)
+    const result = await client(stub).get<{ Description: string }>('Bugs', 1)
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(result.data.Description).toBe('<a href="https://x.io/?token=abc">link</a>')
+  })
+
+  it('still removes the exact token from bodies', async () => {
+    const stub = new FetchStub().get('/api/v1/Bugs/1', { Echo: `access_token=${TOKEN}` })
+    const result = await client(stub).get<{ Echo: string }>('Bugs', 1)
+    expect(result.ok && result.data.Echo).toBe('access_token=***')
+  })
+
+  it('a write whose response body cannot be read says it was most likely applied', async () => {
+    const http = new HttpCore({
+      baseUrl: 'https://tp.example',
+      token: TOKEN,
+      fetch: async () => {
+        const res = new Response('{}', { status: 201 })
+        Object.defineProperty(res, 'text', { value: () => Promise.reject(new Error('socket hang up')) })
+        return res
+      },
+    })
+    const r = await new V1Client(http).create('Bugs', { Name: 'x' })
+    expect(r.ok || r.message).toMatch(/answered 201, so the write was most likely applied: check before retrying/)
+  })
+
+  it('caps large error bodies', async () => {
+    const stub = new FetchStub().get('/api/v1/Bugs/1', `<html>${'x'.repeat(10_000)}</html>`, { status: 500 })
+    const r = await client(stub).get('Bugs', 1)
+    expect(r.ok || r.body.length).toBeLessThan(4100)
+    expect(r.ok || r.body).toMatch(/more characters\)$/)
   })
 })

@@ -116,15 +116,16 @@ export function readSnapshot(): CatalogData {
 
 export interface CatalogProviderOptions {
   log?: Logger
-  /** Give up on the live catalog after this long and use the snapshot. Default 60 s. */
+  /** Serve the snapshot if the live catalog takes longer than this (default 25 s); the live one replaces it when it arrives. */
   timeoutMs?: number
   snapshot?: () => CatalogData
 }
 
 /**
  * Loads the live catalog once (in the background from `start()`), caching it in
- * memory; falls back to the committed snapshot if the instance's metadata is
- * unavailable.
+ * memory. Falls back to the committed snapshot if the instance's metadata is
+ * unavailable or slow; a live catalog that arrives late replaces the snapshot.
+ * A failed load is never cached.
  */
 export class CatalogProvider {
   private pending?: Promise<Catalog>
@@ -137,37 +138,62 @@ export class CatalogProvider {
     options: CatalogProviderOptions = {},
   ) {
     this.log = options.log ?? (() => {})
-    this.timeoutMs = options.timeoutMs ?? 60_000
+    this.timeoutMs = options.timeoutMs ?? 25_000
     this.snapshot = options.snapshot ?? readSnapshot
   }
 
   start(): void {
-    void this.get()
+    this.get().catch((error: unknown) => {
+      this.log(`catalog: no catalog available (${error instanceof Error ? error.message : String(error)}); tools needing it will report this`)
+    })
   }
 
   get(): Promise<Catalog> {
-    this.pending ??= this.load()
+    if (!this.pending) {
+      const loading = this.load()
+      this.pending = loading
+      loading.catch(() => {
+        if (this.pending === loading) this.pending = undefined
+      })
+    }
     return this.pending
   }
 
+  private safeSnapshot(): CatalogData | undefined {
+    try {
+      return this.snapshot()
+    } catch {
+      return undefined
+    }
+  }
+
   private async load(): Promise<Catalog> {
+    const live = loadCatalog(this.v1, { log: this.log, fallback: () => this.safeSnapshot() }).catch((error: unknown) => {
+      this.log(`catalog: live load failed (${error instanceof Error ? error.message : String(error)})`)
+      return undefined
+    })
     let timer: NodeJS.Timeout | undefined
     const timeout = new Promise<'timeout'>((resolve) => {
       timer = setTimeout(() => resolve('timeout'), this.timeoutMs)
       timer.unref?.()
     })
-    try {
-      const live = await Promise.race([loadCatalog(this.v1, { log: this.log }), timeout])
-      if (live !== 'timeout' && live.ok) {
-        this.log(`catalog: loaded ${live.data.resources.length} resources from the instance`)
-        return new Catalog(live.data, 'live')
-      }
-      this.log(`catalog: live metadata unavailable (${live === 'timeout' ? 'timed out' : live.message}); using snapshot`)
-    } catch (error) {
-      this.log(`catalog: live load failed (${error instanceof Error ? error.message : String(error)}); using snapshot`)
-    } finally {
-      if (timer) clearTimeout(timer)
+    const first = await Promise.race([live, timeout])
+    if (timer) clearTimeout(timer)
+
+    if (first !== 'timeout' && first?.ok) {
+      this.log(`catalog: loaded ${first.data.resources.length} resources from the instance`)
+      return new Catalog(first.data, 'live')
     }
+    if (first === 'timeout') {
+      // Keep the snapshot for now and swap the live catalog in once it arrives.
+      void live.then((late) => {
+        if (late?.ok) {
+          this.pending = Promise.resolve(new Catalog(late.data, 'live'))
+          this.log(`catalog: live catalog arrived late (${late.data.resources.length} resources); now in use`)
+        }
+      })
+    }
+    this.log(`catalog: live metadata unavailable (${first === 'timeout' ? `not loaded within ${this.timeoutMs} ms` : first ? first.message : 'error'}); using snapshot`)
     return new Catalog(this.snapshot(), 'snapshot')
   }
 }

@@ -4,7 +4,7 @@ import { Catalog, CatalogProvider, readSnapshot, suggestions } from '../src/cata
 import { loadCatalog, parseIndex, parseMetaXml } from '../src/catalog/loader.js'
 import { HttpCore } from '../src/http/core.js'
 import { V1Client } from '../src/http/v1.js'
-import { FetchStub } from './helpers/fetch-stub.js'
+import { FetchStub, StubReply } from './helpers/fetch-stub.js'
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')
 
@@ -84,7 +84,71 @@ describe('loadCatalog', () => {
   })
 })
 
+describe('loadCatalog transient failures', () => {
+  it('retries a failed /meta once, then uses the snapshot entry instead of dropping the resource', async () => {
+    const snapshot = readSnapshot()
+    let storyMetaCalls = 0
+    const stub = new FetchStub()
+      .get('/api/v1/Index/meta', fixture('index-meta.json'))
+      .get('/api/v1/UserStories/meta', () => {
+        storyMetaCalls++
+        return new StubReply(503, { Message: 'Service Unavailable' })
+      })
+      .get('/api/v1/Context', { Version: 'x' })
+      .get(/\/meta$/, { Status: 'NotFound', Message: 'Not Found' }, { status: 404 })
+    const result = await loadCatalog(v1(stub), { fallback: () => snapshot })
+    expect(storyMetaCalls).toBe(2)
+    const story = result.ok ? result.data.resources.find((r) => r.name === 'UserStory') : undefined
+    expect(story).toMatchObject({ available: true, listed: true, path: 'UserStories' })
+    expect(story?.collections.length).toBeGreaterThan(10)
+  })
+
+  it('a 404 is final: no retry and no fallback', async () => {
+    const stub = new FetchStub()
+      .get('/api/v1/Index/meta', fixture('index-meta.json'))
+      .get('/api/v1/Context', { Version: 'x' })
+      .get(/\/meta$/, { Status: 'NotFound', Message: 'Not Found' }, { status: 404 })
+    const result = await loadCatalog(v1(stub), { fallback: () => readSnapshot() })
+    expect(stub.find('GET', '/api/v1/SickLeaves/meta')).toHaveLength(1)
+    expect(result.ok && result.data.resources.find((r) => r.name === 'SickLeave')?.available).toBe(false)
+  })
+})
+
 describe('CatalogProvider', () => {
+  it('does not cache a failed load and never rejects from start()', async () => {
+    const stub = new FetchStub().get('/api/v1/Index/meta', { Message: 'down' }, { status: 503 })
+    let calls = 0
+    const provider = new CatalogProvider(v1(stub), {
+      snapshot: () => {
+        calls++
+        if (calls === 1) throw new Error('snapshot missing')
+        return { instance: 'x', capturedAt: 'y', resources: [] }
+      },
+    })
+    provider.start()
+    await expect(provider.get()).rejects.toThrow('snapshot missing')
+    await expect(provider.get()).resolves.toMatchObject({ source: 'snapshot' })
+  })
+
+  it('serves the snapshot when the live catalog is slow, then swaps the live one in', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const stub = new FetchStub()
+      .get('/api/v1/Index/meta', async () => {
+        await gate
+        return fixture('index-meta.json')
+      })
+      .get('/api/v1/Context', { Version: 'x' })
+      .get(/\/meta$/, { Status: 'NotFound', Message: 'Not Found' }, { status: 404 })
+    const provider = new CatalogProvider(v1(stub), { timeoutMs: 10, snapshot: () => ({ instance: 'x', capturedAt: 'y', resources: [] }) })
+    expect((await provider.get()).source).toBe('snapshot')
+    release()
+    await new Promise((r) => setTimeout(r, 50))
+    expect((await provider.get()).source).toBe('live')
+  })
+
   it('falls back to the snapshot when live metadata fails', async () => {
     const stub = new FetchStub().get('/api/v1/Index/meta', { Message: 'down' }, { status: 503 })
     const snapshot = { instance: 'x', capturedAt: 'y', resources: [] }

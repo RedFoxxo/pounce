@@ -15,11 +15,12 @@ const ID = /^\d+$/
 function optionalId(env: NodeJS.ProcessEnv, key: string, problems: string[]): number | undefined {
   const raw = env[key]?.trim()
   if (!raw) return undefined
-  if (!ID.test(raw)) {
-    problems.push(`${key} must be a numeric id, got "${raw}"`)
+  const value = Number(raw)
+  if (!ID.test(raw) || !Number.isSafeInteger(value) || value <= 0) {
+    problems.push(`${key} must be a positive numeric id, got "${raw}"`)
     return undefined
   }
-  return Number(raw)
+  return value
 }
 
 /** Reads and validates the environment. Throws `ConfigError` listing every problem at once. */
@@ -33,8 +34,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   } else {
     try {
       const url = new URL(rawUrl)
-      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-        problems.push(`TP_BASE_URL must be an http(s) URL, got "${rawUrl}"`)
+      const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+      if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
+        problems.push(`TP_BASE_URL must be an https URL (the token travels in the query string), got "${rawUrl}"`)
       } else if (/\/api(\/|$)/i.test(url.pathname)) {
         problems.push(`TP_BASE_URL must be the instance root without /api/..., got "${rawUrl}"`)
       } else if (url.search || url.hash) {

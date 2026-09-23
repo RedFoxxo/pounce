@@ -1,5 +1,6 @@
 import { suggestions, type Catalog } from '../../catalog/catalog.js'
 import type { CatalogCollection, CatalogField, CatalogResource } from '../../catalog/types.js'
+import { sameDateValue } from '../../format/dates.js'
 
 export type Prepared<T> = { ok: true; value: T } | { ok: false; message: string }
 
@@ -185,10 +186,8 @@ export function unpersisted(requested: Record<string, unknown>, returned: unknow
   return missing
 }
 
-function sameDate(a: string, b: string): boolean {
-  const ta = Date.parse(a)
-  const tb = Date.parse(b)
-  return /\d{4}-\d{2}-\d{2}/.test(a) && !Number.isNaN(ta) && !Number.isNaN(tb) && Math.abs(ta - tb) < 24 * 3600 * 1000
+function sameDate(want: string, got: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}/.test(want) && sameDateValue(want, got)
 }
 
 /** Targetprocess may wrap or entity-encode text it stores (e.g. descriptions in `<div>`). */

@@ -246,6 +246,15 @@ export interface LoadOptions {
   concurrency?: number
   log?: Logger
   now?: () => Date
+  /** Baseline used for a resource whose /meta fails for a reason other than 404 (after one retry). */
+  fallback?: () => CatalogData | undefined
+}
+
+/** One retry for transient failures; a 404 means the resource does not exist here. */
+async function fetchMetaRetrying(v1: V1Client, path: string): Promise<Result<RawMeta>> {
+  const first = await fetchMeta(v1, path)
+  if (first.ok || first.status === 404) return first
+  return fetchMeta(v1, path)
 }
 
 /**
@@ -256,6 +265,11 @@ export interface LoadOptions {
 export async function loadCatalog(v1: V1Client, options: LoadOptions = {}): Promise<Result<CatalogData>> {
   const concurrency = options.concurrency ?? 8
   const log = options.log ?? (() => {})
+  let baseline: CatalogData | undefined | null = null
+  const fromBaseline = (path: string): CatalogResource | undefined => {
+    if (baseline === null) baseline = options.fallback?.()
+    return baseline?.resources.find((r) => r.path.toLowerCase() === path.toLowerCase() && r.available)
+  }
 
   const index = await v1.getText('Index/meta')
   if (!index.ok) return index
@@ -263,8 +277,13 @@ export async function loadCatalog(v1: V1Client, options: LoadOptions = {}): Prom
   if (entries.length === 0) return err(index.status, 'The resource index was empty or unreadable', index.data.slice(0, 2000))
 
   const listed = await mapLimit(entries, concurrency, async (entry) => {
-    const meta = await fetchMeta(v1, entry.path)
+    const meta = await fetchMetaRetrying(v1, entry.path)
     if (!meta.ok || !meta.data) {
+      const known = meta.ok || meta.status !== 404 ? fromBaseline(entry.path) : undefined
+      if (known) {
+        log(`catalog: ${entry.name} /meta failed (${meta.ok ? 'empty' : meta.message}); using the snapshot entry`)
+        return { ...known, listed: true }
+      }
       log(`catalog: ${entry.name} is listed but its /meta failed (${meta.ok ? 'empty' : meta.message}); marked unavailable`)
       return unavailable(entry)
     }
@@ -278,9 +297,12 @@ export async function loadCatalog(v1: V1Client, options: LoadOptions = {}): Prom
   ].filter((path) => !known.has(path.toLowerCase()))
 
   const probed = await mapLimit(probes, concurrency, async (path) => {
-    const meta = await fetchMeta(v1, path)
-    if (!meta.ok || !meta.data) return undefined
-    return parseMeta(meta.data, { name: path, path, listed: false })
+    const meta = await fetchMetaRetrying(v1, path)
+    if (meta.ok && meta.data) return parseMeta(meta.data, { name: path, path, listed: false })
+    if (!meta.ok && meta.status === 404) return undefined
+    const known = fromBaseline(path)
+    if (known) log(`catalog: ${path}/meta failed (${meta.ok ? 'empty' : meta.message}); using the snapshot entry`)
+    return known
   })
 
   const resources = [...listed, ...probed.filter((r): r is CatalogResource => r !== undefined)]

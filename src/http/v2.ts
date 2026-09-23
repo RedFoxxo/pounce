@@ -26,7 +26,8 @@ export interface V2ListResult<T> {
 const PAGE = 1000
 
 function seg(part: string): string {
-  return encodeURIComponent(part)
+  // WHATWG URL resolves "." and ".." even when encoded; never let them through.
+  return part === '.' || part === '..' ? encodeURIComponent(`_${part}`) : encodeURIComponent(part)
 }
 
 /**
@@ -47,7 +48,8 @@ export class V2Client {
       const query: Query = {
         select: options.select,
         where: options.where,
-        orderBy: options.orderBy,
+        // Skip-based paging needs a stable order; v2 has no documented default.
+        orderBy: options.orderBy ?? 'id',
         filter: options.filter,
         includeDeleted: options.includeDeleted ? 'true' : undefined,
         isoDate: 'true',
