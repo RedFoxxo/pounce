@@ -70,3 +70,16 @@ describe('delete_relation', () => {
     expect(h.stub.writes).toHaveLength(0)
   })
 })
+
+describe('delete_card child rules per type', () => {
+  it("a test case's linked stories are not children (live regression)", async () => {
+    const tp = new FakeTp()
+    tp.addCard({ Id: 36517, type: 'TestCase', Name: 'Case one' })
+    const render = tp.render.bind(tp)
+    tp.render = (card) => ({ ...render(card), ...(card.Id === 36517 ? { 'UserStories-Count': 1 } : {}) })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('delete_card', { id: 36517 })
+    expect(r.isError, r.text).toBe(false)
+    expect(r.json.deleted).toMatchObject({ id: 36517, type: 'TestCase' })
+  })
+})

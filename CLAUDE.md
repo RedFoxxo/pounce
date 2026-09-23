@@ -231,7 +231,9 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 
 The `delete_` tier adds only what layer 1 `delete_entity` cannot express:
 `delete_card` (card by id alone, type resolved, parent side effects reported;
-a card with child cards needs `withChildren: true`) and `delete_relation` (by the
+a card with child cards needs `withChildren: true`; what counts as a child
+depends on the type: a story's tasks and bugs, a feature's stories, an epic's
+features, a test plan's test cases, but never a test case's linked stories) and `delete_relation` (by the
 two related card ids). Comments, times and other plain entities are deleted with
 `delete_entity`.
 

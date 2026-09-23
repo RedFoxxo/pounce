@@ -9,13 +9,25 @@ import { defineTool } from '../types.js'
 
 type Raw = Record<string, unknown>
 
-/** Counts (from read_card) that are child cards rather than comments, times or attachments. */
-const CHILD_COUNTS = ['tasks', 'bugs', 'userStories', 'features', 'epics', 'testCases']
+/**
+ * Counts (from read_card) that are child cards of each type. The same
+ * collection means different things per type: a feature's UserStories are its
+ * children, a test case's UserStories are only the stories it is linked to
+ * (live: a test case "had 1 userStories").
+ */
+const CHILD_COUNTS: Record<string, string[]> = {
+  PortfolioEpic: ['epics', 'features'],
+  Epic: ['features'],
+  Feature: ['userStories', 'bugs'],
+  UserStory: ['tasks', 'bugs'],
+  TestPlan: ['testCases'],
+}
 
 export const deleteCard = defineTool({
   name: 'delete_card',
   description:
-    'Delete a card by id alone (its type is resolved). A card with child cards (tasks, bugs, stories, features, epics, test cases) is only ' +
+    'Delete a card by id alone (its type is resolved). A card with child cards (a story\'s tasks and bugs, a feature\'s stories, an epic\'s ' +
+    'features, a test plan\'s test cases) is only ' +
     "deleted with withChildren: true, since Targetprocess may delete them with it. Reports what was deleted and the parent card's state and " +
     'efforts before/after.',
   input: { id, withChildren: z.boolean().optional().describe('Confirm deleting a card that has child cards') },
@@ -27,7 +39,7 @@ export const deleteCard = defineTool({
     if (!allowed.ok) return invalid(allowed.message)
     const shaped = shapeCard(info, raw)
     const children = Object.fromEntries(
-      Object.entries(shaped.counts ?? {}).filter(([k, n]) => CHILD_COUNTS.includes(k) && n > 0),
+      Object.entries(shaped.counts ?? {}).filter(([k, n]) => (CHILD_COUNTS[info.entityType] ?? []).includes(k) && n > 0),
     )
     if (Object.keys(children).length && !args.withChildren) {
       return invalid(`${info.entityType} ${info.id} has child cards (${Object.entries(children).map(([k, n]) => `${n} ${k}`).join(', ')}); pass withChildren: true to delete it anyway`)
