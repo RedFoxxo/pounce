@@ -59,6 +59,11 @@ export const BULK_LIMIT = 500
 
 const V1 = '/api/v1'
 
+/** A string literal for a v1 `where` clause; quotes and backslashes are backslash-escaped (**live**-verified). */
+export function v1String(value: string): string {
+  return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+}
+
 function seg(part: string | number): string {
   return encodeURIComponent(String(part))
 }

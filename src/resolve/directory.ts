@@ -1,5 +1,5 @@
 import { err, ok, type Result } from '../http/result.js'
-import type { V1Client, V1Ref } from '../http/v1.js'
+import { v1String, type V1Client, type V1Ref } from '../http/v1.js'
 import { match, type Resolved } from './match.js'
 
 export interface TpUser {
@@ -11,6 +11,7 @@ export interface TpUser {
   IsActive?: boolean
   DeleteDate?: string | null
   Kind?: string
+  Role?: V1Ref | null
 }
 
 export interface TpRole {
@@ -117,7 +118,7 @@ export class Directory {
   }
 
   users(): Promise<Result<TpUser[]>> {
-    return this.all('users', 'Users', '[Id,FirstName,LastName,Login,Email,IsActive,DeleteDate,Kind]')
+    return this.all('users', 'Users', '[Id,FirstName,LastName,Login,Email,IsActive,DeleteDate,Kind,Role[Id,Name]]')
   }
 
   roles(): Promise<Result<TpRole[]>> {
@@ -136,7 +137,7 @@ export class Directory {
   states(processId: number, entityType: string): Promise<Result<TpState[]>> {
     return this.cached(`states:${processId}:${entityType}`, async () => {
       const r = await this.v1.list<TpState>('EntityStates', {
-        where: `(Process.Id eq ${processId}) and (EntityType.Name eq '${entityType.replace(/'/g, "''")}')`,
+        where: `(Process.Id eq ${processId}) and (EntityType.Name eq ${v1String(entityType)})`,
         include: '[Id,Name,IsInitial,IsFinal,IsPlanned,NumericPriority,Workflow[Id,Name,ParentWorkflow],ParentEntityState[Id,Name],Role[Id,Name],EntityType[Id,Name]]',
         orderBy: 'NumericPriority',
       })
@@ -148,7 +149,7 @@ export class Directory {
   customFields(processId: number, entityType: string): Promise<Result<TpCustomField[]>> {
     return this.cached(`cf:${processId}:${entityType}`, async () => {
       const r = await this.v1.list<TpCustomField>('CustomFields', {
-        where: `(Process.Id eq ${processId}) and (EntityType.Name eq '${entityType.replace(/'/g, "''")}')`,
+        where: `(Process.Id eq ${processId}) and (EntityType.Name eq ${v1String(entityType)})`,
         include: '[Id,Name,FieldType,Value,Required,EntityType[Id,Name],Process[Id,Name]]',
       })
       if (!r.ok) return r
