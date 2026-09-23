@@ -117,6 +117,7 @@ export function withReferenceData(stub: FetchStub): FetchStub {
     .get('/api/v1/EntityStates', { Items: taskStates }, { query: where("EntityType.Name eq 'Task'") })
     .get('/api/v1/EntityStates', { Items: [...storyStates, ...taskStates] }, { query: (q) => !q.get('where') })
     .get('/api/v1/EntityStates', { Items: [] })
+    .get(/^\/api\/v1\/Processes\/\d+$/, { Id: 13, Name: 'Mamami 2025', Practices: { Items: [{ Id: 2, Name: 'Time Tracking' }, { Id: 3, Name: 'Bug Tracking' }] } })
     .get('/api/v1/CustomFields', { Items: storyCustomFields }, { query: where("EntityType.Name eq 'UserStory'") })
     .get('/api/v1/CustomFields', { Items: [] })
 }

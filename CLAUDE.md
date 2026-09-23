@@ -224,7 +224,8 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 | `write_set_role_effort` | One or more roles on a card; reports rollup side effects |
 | `write_set_custom_fields` | Validates dropdown values against `read_custom_field_options` before writing |
 | `write_team` | Add or remove a team on a card |
-| `write_comment`, `write_log_time`, `write_relate`, `write_follow` | Attachments: layer 1 `write_attachment` |
+| `write_comment`, `write_relate`, `write_follow` | Attachments: layer 1 `write_attachment` |
+| `write_log_time`, `read_times` | `Time` entries where the card's process has the "Time Tracking" practice; otherwise a `TimeRecord` type when the instance has one with an "Hours" field (no role, no remaining time); otherwise a clear error |
 | `write_test_cases` | Create test cases with steps under a test plan |
 | `write_test_run` | Record a test plan run and per-test-case results |
 
@@ -372,7 +373,7 @@ from the instance, never hardcoded.
 | Set collections | `"Assignments"`, `"AssignedTeams"`, `"RoleEfforts"` as `{"Items":[...]}` on the card POST. **POST appends; to replace, DELETE the existing items first** | docs |
 | Tags | `"Tags":"a,b"` replaces all tags; `"TagObjects":[{"Name":...}]` or `[{"Id":...}]` adds | docs |
 | Custom fields | By name (`"MyField": value`) or `"CustomFields":[{"Name","Value"}]`; entity-type fields take `{"Id","Kind"}`. System fields (`IsSystem`, e.g. "Total Hours") are refused with a 400 that fails the **whole** write, so pounce refuses them before sending | `CustomFields` array **live**; entity form docs |
-| Time tracking | `POST /api/v1/Times` answers 400 "Time is not available for current process" where the process has time tracking off (**live**, process 13) | **live** |
+| Time tracking | `POST /api/v1/Times` answers 400 "Time is not available for current process" where the process lacks the "Time Tracking" practice (`Processes/{id}?include=[Practices[Name]]`; **live**, process 13). Our instance tracks time in a custom `TimeRecord` type instead: custom fields "Hours" (number, required) and "Date", references `ConnectedUser` and `Task`/`UserStory`/`Bug`/…; an automation renames records ("<card> / <person> / <hours>h") and fills day/week/month periods. `CustomFields.Date gte '…'` filters server-side. `write_log_time`/`read_times` pick `Time` or `TimeRecord` per process (`src/domain/time.ts`) | **live** |
 | Response shaping on write | `resultFormat`, `resultInclude`, `resultExclude`, `resultAppend` | docs |
 | Bulk create/update | `POST /api/v1/{Plural}/bulk` with an array, **≤ 500 items** | route **live** (400 on `[]`), docs |
 | Delete | `DELETE /api/v1/{Plural}/{id}` → 200, 404 if missing | docs; used by old server |
@@ -413,7 +414,8 @@ their live status (test story #36512, 2026-09-23):
   and `TestCaseRuns` `{Status, Comment}`; `UploadFile.ashx` with an access token.
 - **not yet exercised:** `POST /api/v1/RoleEfforts` `{Assignable, Role, Effort}`
   (creating a missing row; cards came with a row per role); `Time.Date` as
-  `YYYY-MM-DD` (time tracking is off in our process); whether deleting a user
+  `YYYY-MM-DD` (time tracking is off in our process; `TimeRecord` is used and
+  verified live instead); whether deleting a user
   story also deletes its tasks (`delete_card` requires `withChildren: true`
   either way).
 

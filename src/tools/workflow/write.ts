@@ -4,6 +4,8 @@ import { readCardAs, readCardRaw, shapeCard, type CardRead } from '../../domain/
 import { isCardResource, parentLink } from '../../domain/create.js'
 import { prepareCustomFields, unpersistedCustomFields, type CustomFieldValue } from '../../domain/custom-fields.js'
 import { applyRoleEfforts, roleEffortRows, type EffortRequest } from '../../domain/efforts.js'
+import { timeBackend, type TimeBackend } from '../../domain/time.js'
+import { sameDateValue } from '../../format/dates.js'
 import { parentChange, parentSnapshot, snapshotAgain, snapshotOf } from '../../domain/parent.js'
 import { htmlToText, textToHtml } from '../../format/html.js'
 import { items, num, ref, tags as parseTags } from '../../format/shape.js'
@@ -827,8 +829,10 @@ export const writeComment = defineTool({
 export const writeLogTime = defineTool({
   name: 'write_log_time',
   description:
-    'Log time spent on a card for a person (default: you). The role defaults to the person\'s only role on the card; if they have none or ' +
-    'several, pass role. date is YYYY-MM-DD (default: today in the server\'s time zone).',
+    'Log time spent on a card for a person (default: you). date is YYYY-MM-DD (default: today in the server\'s time zone). Where the card\'s ' +
+    'process tracks time, this is a Time entry and the role defaults to the person\'s only role on the card (pass role if they have none or ' +
+    'several). Where the process has no Time Tracking practice but the instance tracks time in a TimeRecord type, this creates a time record ' +
+    'linked to the person and the card (and a task\'s story); records have no role or remaining time, and Targetprocess names them itself.',
   input: {
     id,
     spent: z.number().positive().max(1000),
@@ -845,6 +849,9 @@ export const writeLogTime = defineTool({
     if (!card.info.project) return invalid(`${card.info.entityType} ${card.info.id} has no project`)
     const user = await resolvePerson(ctx, args.user ?? 'me')
     if (!user.ok) return unresolved(user)
+    const backend = await timeBackend(ctx, card.info.processId)
+    if (!backend.ok) return backend.error ? failure(backend.message, backend.error) : invalid(backend.message)
+    if (backend.value.kind === 'TimeRecord') return logTimeRecord(ctx, card, user.value, backend.value, args)
     let roleId: number
     let roleName: string | undefined
     if (args.role !== undefined) {
@@ -889,6 +896,62 @@ export const writeLogTime = defineTool({
     })
   },
 })
+
+/** write_log_time on an instance that tracks time in a TimeRecord type. */
+async function logTimeRecord(
+  ctx: ToolContext,
+  card: CardRead,
+  user: TpUser,
+  backend: Extract<TimeBackend, { kind: 'TimeRecord' }>,
+  args: { spent: number; date?: string | undefined; description?: string | undefined; role?: string | number | undefined; remain?: number | undefined },
+): Promise<ToolOutput> {
+  if (args.remain !== undefined) return invalid(`time records have no remaining time; log only spent (${backend.resource.name})`)
+  const cardRef = backend.cardRefs.find((r) => r === card.info.entityType)
+  if (!cardRef) return invalid(`a ${backend.resource.name} cannot be linked to a ${card.info.entityType}; it links to ${backend.cardRefs.join(', ')}`)
+  const date = args.date ?? localDate()
+  const links: Record<string, { Id: number }> = { [cardRef]: { Id: card.info.id } }
+  // A task's record also carries its story, as the team's own records do.
+  const story = ref(card.raw.UserStory)
+  if (card.info.entityType === 'Task' && story && backend.cardRefs.includes('UserStory')) links.UserStory = { Id: story.id }
+  const body: Record<string, unknown> = {
+    // Provisional: an automation renames records ("<card> / <person> / <hours>h").
+    Name: `${card.info.name} / ${fullName(user)} / ${args.spent}h`,
+    ...links,
+    ConnectedUser: { Id: user.Id },
+    CustomFields: [{ Name: backend.hours, Value: args.spent }, ...(backend.date ? [{ Name: backend.date, Value: date }] : [])],
+  }
+  if (args.description) body.Description = args.description
+  const created = await ctx.v1.create<Raw>(backend.resource.path, body, { resultInclude: '[Id]' })
+  if (!created.ok) return failure(`Could not log time on ${card.info.entityType} ${card.info.id}`, created)
+  const recordId = num(created.data?.Id) as number
+  const back = await ctx.v1.get<Raw>(backend.resource.path, recordId, {
+    include: `[Id,Name,ConnectedUser[Id],${Object.keys(links).map((k) => `${k}[Id]`).join(',')},CustomFields,DayPeriod[Name]]`,
+  })
+  const label = {
+    time: recordId,
+    kind: backend.resource.name,
+    card: cardLabel(card),
+    user: `${fullName(user)} (${user.Id})`,
+    spent: args.spent,
+    date,
+    ...(args.role !== undefined ? { note: `role ignored: ${backend.resource.name} entries have no role` } : {}),
+  }
+  if (!back.ok) return success({ ...label, warning: `The record was created but could not be read back to verify it (${back.message})` })
+  const fields = Array.isArray(back.data.CustomFields) ? (back.data.CustomFields as Raw[]) : []
+  const value = (name: string) => fields.find((f) => f.Name === name)?.Value
+  const notPersisted: string[] = []
+  if (value(backend.hours) !== args.spent) notPersisted.push(`${backend.hours}: requested ${args.spent}, got ${JSON.stringify(value(backend.hours) ?? null)}`)
+  const gotDate = value(backend.date ?? '')
+  if (backend.date && !(typeof gotDate === 'string' && sameDateValue(date, gotDate))) notPersisted.push(`${backend.date}: requested ${date}, got ${JSON.stringify(gotDate ?? null)}`)
+  if (ref(back.data.ConnectedUser)?.id !== user.Id) notPersisted.push(`user: requested ${user.Id}, got ${ref(back.data.ConnectedUser)?.id ?? null}`)
+  for (const [k, v] of Object.entries(links)) if (ref(back.data[k])?.id !== v.Id) notPersisted.push(`${k}: requested ${v.Id}, got ${ref(back.data[k])?.id ?? null}`)
+  return success({
+    ...label,
+    name: back.data.Name,
+    ...(ref(back.data.DayPeriod)?.name ? { period: ref(back.data.DayPeriod)?.name } : {}),
+    ...(notPersisted.length ? { notPersisted } : {}),
+  })
+}
 
 export const writeRelate = defineTool({
   name: 'write_relate',

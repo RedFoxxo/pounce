@@ -170,6 +170,9 @@ operation your instance reports.
   is sent.
 - Names are resolved, never guessed: an ambiguous name returns every candidate
   with its id.
+- Time is logged where your process keeps it: standard Time entries, or, on
+  instances that track time in a custom `TimeRecord` type (hours and date fields),
+  a time record linked to the person and the card.
 - Every write is read back, and any value that did not persist is listed under
   `notPersisted`. If a multi-step write fails partway, the error says what was
   already done.

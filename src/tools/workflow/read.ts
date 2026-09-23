@@ -10,6 +10,8 @@ import { failure, invalid, success } from '../respond.js'
 import { id } from '../schema.js'
 import { defineTool, type ToolOutput } from '../types.js'
 import { typeScope, unresolved } from './common.js'
+import { timeBackend, timeRecordBackend, type TimeBackend } from '../../domain/time.js'
+import { cardInfo } from '../../resolve/card.js'
 
 type Raw = Record<string, unknown>
 
@@ -424,9 +426,31 @@ export const readRelations = defineTool({
   },
 })
 
+interface TimeEntry {
+  id?: number | undefined
+  kind: string
+  date?: unknown
+  spent?: number | undefined
+  [key: string]: unknown
+}
+
+function timeEntry(t: Raw): TimeEntry {
+  return compact({ id: num(t.Id), kind: 'Time', date: t.Date, spent: num(t.Spent), remain: num(t.Remain), user: person(t.User), role: ref(t.Role), card: ref(t.Assignable), description: text(t.Description) }) as TimeEntry
+}
+
+function recordEntry(r: Raw, backend: Extract<TimeBackend, { kind: 'TimeRecord' }>): TimeEntry {
+  const fields = Array.isArray(r.CustomFields) ? (r.CustomFields as Raw[]) : []
+  const value = (name?: string) => (name ? fields.find((f) => f.Name === name)?.Value : undefined)
+  const card = backend.cardRefs.map((k) => ref(r[k])).find(Boolean)
+  return compact({ id: num(r.Id), kind: backend.resource.name, date: value(backend.date), spent: num(value(backend.hours)), user: person(r.ConnectedUser), card, name: r.Name, description: text(r.Description) }) as TimeEntry
+}
+
 export const readTimes = defineTool({
   name: 'read_times',
-  description: 'Time logged on a card, or by a person ("me" for yourself), optionally within dates (YYYY-MM-DD). Returns entries and the total spent.',
+  description:
+    'Time logged on a card, or by a person ("me" for yourself), optionally within dates (YYYY-MM-DD). Returns entries and the total spent. ' +
+    'Reads Time entries where the card\'s process tracks time, and TimeRecord entries where the instance tracks time that way (a story\'s ' +
+    'records include those of its tasks). By person alone, both kinds are returned.',
   input: {
     id: id.optional().describe('Card id'),
     user: nameOrId.optional().describe('Person, or "me"'),
@@ -435,32 +459,77 @@ export const readTimes = defineTool({
     limit: listLimit(500, 5000),
   },
   handler: async (args, ctx) => {
-    const where: string[] = []
-    if (args.id !== undefined) where.push(`(Assignable.Id eq ${args.id})`)
+    if (args.id === undefined && args.user === undefined) return invalid('pass a card id or a user')
+    let userId: number | undefined
     if (args.user !== undefined) {
       const user = String(args.user).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.user, { allowInactive: true })
       if (!user.ok) return unresolved(user)
-      where.push(`(User.Id eq ${user.value.Id})`)
+      userId = user.value.Id
     }
-    if (!where.length) return invalid('pass a card id or a user')
-    if (args.from) where.push(`(Date gte '${args.from}')`)
-    if (args.to) where.push(`(Date lte '${args.to}')`)
-    const r = await ctx.v1.list<Raw>('Times', {
-      where: where.join(' and '),
-      include: '[Id,Spent,Remain,Date,Description,User[Id,FirstName,LastName,Login],Role[Id,Name],Assignable[Id,Name]]',
-      orderByDesc: 'Date',
-      limit: args.limit ?? 500,
-    })
-    if (!r.ok) return failure('Could not read times', r)
-    const entries = r.data.items.map((t) =>
-      compact({ id: num(t.Id), date: t.Date, spent: num(t.Spent), remain: num(t.Remain), user: person(t.User), role: ref(t.Role), card: ref(t.Assignable), description: text(t.Description) }),
-    )
+    const limit = args.limit ?? 500
+
+    // Which kinds to read: by card, the card's process decides; by person, every kind the instance has.
+    let readTime = true
+    let record: Extract<TimeBackend, { kind: 'TimeRecord' }> | undefined
+    let cardRef: string | undefined
+    if (args.id !== undefined) {
+      const info = await cardInfo(ctx, args.id)
+      if (!info.ok) return unresolved(info)
+      const backend = await timeBackend(ctx, info.value.processId)
+      if (!backend.ok) return backend.error ? failure(backend.message, backend.error) : invalid(backend.message)
+      if (backend.value.kind === 'TimeRecord') {
+        readTime = false
+        record = backend.value
+        cardRef = record.cardRefs.find((r) => r === info.value.entityType)
+        if (!cardRef) return invalid(`${record.resource.name} entries do not link to a ${info.value.entityType}`)
+      }
+    } else {
+      const found = await timeRecordBackend(ctx)
+      if (!found.ok) return failure(found.message, found.error)
+      record = found.value
+    }
+
+    const entries: TimeEntry[] = []
+    let truncated = false
+    if (readTime) {
+      const where: string[] = []
+      if (args.id !== undefined) where.push(`(Assignable.Id eq ${args.id})`)
+      if (userId !== undefined) where.push(`(User.Id eq ${userId})`)
+      if (args.from) where.push(`(Date gte '${args.from}')`)
+      if (args.to) where.push(`(Date lte '${args.to}')`)
+      const r = await ctx.v1.list<Raw>('Times', {
+        where: where.join(' and '),
+        include: '[Id,Spent,Remain,Date,Description,User[Id,FirstName,LastName,Login],Role[Id,Name],Assignable[Id,Name]]',
+        orderByDesc: 'Date',
+        limit,
+      })
+      if (!r.ok) return failure('Could not read times', r)
+      entries.push(...r.data.items.map(timeEntry))
+      truncated ||= r.data.truncated
+    }
+    if (record) {
+      const where: string[] = []
+      if (cardRef && args.id !== undefined) where.push(`(${cardRef}.Id eq ${args.id})`)
+      if (userId !== undefined) where.push(`(ConnectedUser.Id eq ${userId})`)
+      if (record.date && args.from) where.push(`(CustomFields.${record.date} gte '${args.from}')`)
+      if (record.date && args.to) where.push(`(CustomFields.${record.date} lte '${args.to}')`)
+      const r = await ctx.v1.list<Raw>(record.resource.path, {
+        where: where.join(' and '),
+        include: `[Id,Name,Description,ConnectedUser[Id,FirstName,LastName,Login],${record.cardRefs.map((k) => `${k}[Id,Name]`).join(',')},CustomFields]`,
+        orderByDesc: 'Id',
+        limit,
+      })
+      if (!r.ok) return failure(`Could not read ${record.resource.path}`, r)
+      entries.push(...r.data.items.map((x) => recordEntry(x, record!)))
+      truncated ||= r.data.truncated
+    }
+    entries.sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')))
     const total = entries.reduce((sum, e) => sum + (e.spent ?? 0), 0)
     return success({
       count: entries.length,
-      truncated: r.data.truncated,
+      truncated,
       totalSpent: Math.round(total * 100) / 100,
-      ...(r.data.truncated ? { totalsPartial: 'totalSpent covers only the returned entries' } : {}),
+      ...(truncated ? { totalsPartial: 'totalSpent covers only the returned entries' } : {}),
       entries,
     })
   },

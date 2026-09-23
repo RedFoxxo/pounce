@@ -272,11 +272,15 @@ describe('per-card reads', () => {
 
   it('read_times totals spent time and needs a card or user', async () => {
     h = await harness({
-      stub: new FetchStub().get('/api/v1/Times', { Items: [{ Id: 1, Spent: 0.15, Remain: 0, Date: '/Date(0)/' }, { Id: 2, Spent: 0.25, Remain: 0, Date: '/Date(0)/' }] }),
+      stub: withReferenceData(
+        new FetchStub()
+          .get('/api/v1/Generals/36488', general(36488, 'Task', 5))
+          .get('/api/v1/Times', { Items: [{ Id: 1, Spent: 0.15, Remain: 0, Date: '/Date(0)/' }, { Id: 2, Spent: 0.25, Remain: 0, Date: '/Date(0)/' }] }),
+      ),
     })
     const r = await h.call('read_times', { id: 36488, from: '2026-09-01' })
     expect(r.json.totalSpent).toBe(0.4)
-    expect(h.stub.calls[0]!.query.get('where')).toBe("(Assignable.Id eq 36488) and (Date gte '2026-09-01')")
+    expect(h.stub.find('GET', '/api/v1/Times')[0]!.query.get('where')).toBe("(Assignable.Id eq 36488) and (Date gte '2026-09-01')")
     expect((await h.call('read_times', {})).isError).toBe(true)
   })
 
@@ -359,7 +363,7 @@ describe('review regressions (read)', () => {
   })
 
   it('read_times says when totals are partial', async () => {
-    h = await harness({ stub: new FetchStub().get('/api/v1/Times', { Next: 'x', Items: [{ Id: 1, Spent: 1 }] }) })
+    h = await harness({ stub: withReferenceData(new FetchStub().get('/api/v1/Generals/5', general(5, 'Task', 5)).get('/api/v1/Times', { Next: 'x', Items: [{ Id: 1, Spent: 1 }] })) })
     const r = await h.call('read_times', { id: 5, limit: 1 })
     expect(r.json.totalsPartial).toMatch(/only the returned entries/)
   })

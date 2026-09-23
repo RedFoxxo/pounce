@@ -17,4 +17,6 @@ First version.
   back.
 - REST v2 queries, change history, RESTful storage, conversions, deleted items,
   attachment upload and undelete.
+- Time logging and reading use standard Time entries, or a custom `TimeRecord`
+  type on instances that track time that way (chosen per process).
 - Setup instructions for opencode and Claude Code.

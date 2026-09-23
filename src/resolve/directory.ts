@@ -178,6 +178,28 @@ export class Directory {
     })
   }
 
+  /** Names of the practices enabled in a process (e.g. "Time Tracking"). */
+  practices(processId: number): Promise<Result<string[]>> {
+    return this.cached(`practices:${processId}`, async () => {
+      const r = await this.v1.get<{ Practices?: { Items?: { Name?: string }[] } }>('Processes', processId, { include: '[Id,Practices[Id,Name]]', innerTake: 1000 })
+      if (!r.ok) return r
+      return ok((r.data.Practices?.Items ?? []).map((p) => p.Name).filter((n): n is string => Boolean(n)), r.status)
+    })
+  }
+
+  /** Custom fields of an entity type in every process, including process-less ones (Extendable Domain types). */
+  entityCustomFields(entityType: string): Promise<Result<TpCustomField[]>> {
+    return this.cached(`cf-any:${entityType}`, async () => {
+      const r = await this.v1.list<TpCustomField>('CustomFields', {
+        where: `(EntityType.Name eq ${v1String(entityType)})`,
+        include: '[Id,Name,FieldType,Value,Required,IsSystem,Config,EntityType[Id,Name],Process[Id,Name]]',
+        limit: DIRECTORY_LIMIT,
+      })
+      if (!r.ok) return r
+      return ok(r.data.items, r.status)
+    })
+  }
+
   loggedUser(): Promise<Result<TpUser>> {
     return this.cached('me', () => this.v1.getPath<TpUser>('Users/LoggedUser', { include: '[Id,FirstName,LastName,Login,Email,IsActive]' }))
   }

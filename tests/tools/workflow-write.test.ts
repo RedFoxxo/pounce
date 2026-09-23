@@ -616,3 +616,74 @@ describe('live-test regressions', () => {
     expect(h.stub.find('GET', '/api/v1/UserStories')[0]!.query.get('where')).toContain('(Project.Id eq 26080)')
   })
 })
+
+describe('time records (instances without the Time Tracking practice)', () => {
+  function recordWorld() {
+    const w = world()
+    const records: Record<string, unknown>[] = []
+    w.tp.stub
+      .first({ method: 'GET', path: /^\/api\/v1\/Processes\/\d+$/, body: { Id: 13, Practices: { Items: [{ Name: 'Bug Tracking' }] } } })
+      .first({
+        method: 'GET',
+        path: '/api/v1/CustomFields',
+        query: (q) => (q.get('where') ?? '').includes("'TimeRecord'"),
+        body: { Items: [{ Id: 1, Name: 'Hours', FieldType: 'Number', Required: true }, { Id: 2, Name: 'Date', FieldType: 'Date' }] },
+      })
+      .post('/api/v1/TimeRecords', (call: { body: unknown }) => {
+        const b = call.body as Record<string, any>
+        const rec = { Id: 900 + records.length, ...b, Name: `${b.Task ? 'Add delivery date' : 'Review and manage orders'} / Foxxo Vulpes / ${b.CustomFields[0].Value}h`, DayPeriod: { Id: 1, Name: '2026-09-23 / Wednesday' } }
+        records.push(rec)
+        return { Id: rec.Id }
+      })
+      .get(/^\/api\/v1\/TimeRecords\/\d+$/, (call: { path: string }) => {
+        const rec = records.find((r) => r.Id === Number(call.path.split('/').pop()))!
+        const cf = (rec.CustomFields as { Name: string; Value: unknown }[]).map((f) => ({ ...f, Value: f.Name === 'Date' ? '/Date(1790114400000+0200)/' : f.Value }))
+        return { ...rec, CustomFields: cf }
+      })
+      .get('/api/v1/TimeRecords', { Items: [{ Id: 7, Name: 'x / Foxxo Vulpes / 0.5h', ConnectedUser: { Id: 2286, FirstName: 'Foxxo', LastName: 'Vulpes' }, UserStory: { Id: 36216, Name: 'Review and manage orders' }, Task: { Id: 36406, Name: 'Add delivery date' }, CustomFields: [{ Name: 'Hours', Value: 0.5 }, { Name: 'Date', Value: '/Date(1790114400000+0200)/' }] }] })
+    return { ...w, records }
+  }
+
+  it('write_log_time creates a TimeRecord linked to the person, the task and its story', async () => {
+    const { tp, records } = recordWorld()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_log_time', { id: 36406, spent: 0.75, date: '2026-09-23' })
+    expect(r.isError, r.text).toBe(false)
+    expect(records[0]).toMatchObject({
+      Task: { Id: 36406 },
+      UserStory: { Id: 36216 },
+      ConnectedUser: { Id: 2286 },
+      CustomFields: [{ Name: 'Hours', Value: 0.75 }, { Name: 'Date', Value: '2026-09-23' }],
+    })
+    expect(h.stub.find('POST', '/api/v1/Times')).toHaveLength(0)
+    expect(r.json).toMatchObject({ kind: 'TimeRecord', spent: 0.75, date: '2026-09-23', period: '2026-09-23 / Wednesday', name: 'Add delivery date / Foxxo Vulpes / 0.75h' })
+    expect(r.json.notPersisted).toBeUndefined()
+  })
+
+  it('refuses remaining time, which records do not have', async () => {
+    const { tp } = recordWorld()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_log_time', { id: 36406, spent: 1, remain: 2 })
+    expect(r.text).toMatch(/time records have no remaining time/)
+    expect(h.stub.writes).toHaveLength(0)
+  })
+
+  it('read_times reads the records of a card, filtering dates on the Date field', async () => {
+    const { tp } = recordWorld()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('read_times', { id: 36406, from: '2026-09-22' })
+    expect(r.isError, r.text).toBe(false)
+    expect(h.stub.find('GET', '/api/v1/TimeRecords')[0]!.query.get('where')).toBe("(Task.Id eq 36406) and (CustomFields.Date gte '2026-09-22')")
+    expect(r.json).toMatchObject({ count: 1, totalSpent: 0.5, entries: [{ kind: 'TimeRecord', spent: 0.5, date: '2026-09-23T00:00:00.000+02:00', card: { id: 36406 } }] })
+    expect(h.stub.find('GET', '/api/v1/Times')).toHaveLength(0)
+  })
+
+  it('a process without time tracking and no TimeRecord type gives a clear error', async () => {
+    const { tp } = world()
+    tp.stub.first({ method: 'GET', path: /^\/api\/v1\/Processes\/\d+$/, body: { Id: 13, Practices: { Items: [] } } })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_log_time', { id: 36406, spent: 1 })
+    expect(r.text).toMatch(/Time tracking is off in this card's process .* no TimeRecord type with an Hours field/)
+    expect(h.stub.writes).toHaveLength(0)
+  })
+})
