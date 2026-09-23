@@ -1,14 +1,27 @@
 {
   "name": "pounce",
-  "version": "0.1.0",
-  "description": "MCP server for the Targetprocess REST API",
+  "version": "1.0.0",
+  "description": "MCP server for Targetprocess: read and manage cards by name, with your team rules enforced and every write verified",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "targetprocess",
+    "apptio",
+    "ai",
+    "claude",
+    "opencode"
+  ],
+  "author": "Foxxo",
   "type": "module",
   "main": "build/index.js",
   "bin": {
     "pounce": "build/index.js"
   },
   "files": [
-    "build"
+    "build/**/*.js",
+    "build/**/*.json",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22.12"
@@ -18,7 +31,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:live": "TP_LIVE=1 vitest run --config vitest.live.config.ts",
-    "snapshot": "npm run build && node build/catalog/snapshot-cli.js"
+    "snapshot": "npm run build && node build/catalog/snapshot-cli.js",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "license": "UNLICENSED",
   "private": true,

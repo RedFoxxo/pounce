@@ -3,9 +3,9 @@
 An MCP server for [Targetprocess](https://www.ibm.com/products/targetprocess): lets AI
 assistants read and manage your cards through the Targetprocess REST API.
 
-Version 0.1.0. See [CHANGELOG.md](CHANGELOG.md).
+Version 1.0.0. See [CHANGELOG.md](CHANGELOG.md).
 
-## Goals
+## Why pounce
 
 - **Full coverage.** If Targetprocess exposes an operation, pounce can perform it.
   Generic tools are driven by your instance's own API metadata, so custom entity
@@ -21,34 +21,30 @@ Version 0.1.0. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
-- Node.js 22.12 or newer
-- A Targetprocess access token (Settings → Access Tokens in your profile)
+- Node.js 22.12 or newer (`npx` comes with it)
+- A Targetprocess access token: in Targetprocess, open your profile →
+  **Access Tokens** → create one
 
-## Install
-
-```sh
-git clone https://github.com/RedFoxxo/pounce.git
-cd pounce
-npm ci
-npm run build
-```
-
-The server entry point is `build/index.js`. It speaks MCP over stdio.
+Nothing to download or build: your MCP client starts pounce with `npx`, which
+fetches the package from npm on first use.
 
 ## Configuration
 
+pounce reads its settings from environment variables, which your MCP client
+passes to it:
+
 | Variable | Required | Purpose |
 |---|---|---|
-| `TP_BASE_URL` | yes | Instance root, e.g. `https://yourcompany.tpondemand.com` (no `/api/...`) |
-| `TP_TOKEN` | yes | Access token. Redacted from every log line |
-| `TP_DEFAULT_PROJECT_ID` | no | Fallback project, used only when a new card has no parent to inherit one from |
-| `TP_DEFAULT_TEAM_ID` | no | Fallback team for new cards; omitted when unset |
+| `TP_BASE_URL` | yes | Your instance, e.g. `https://yourcompany.tpondemand.com` (no `/api/...`) |
+| `TP_TOKEN` | yes | Your access token. Never logged |
+| `TP_DEFAULT_PROJECT_ID` | no | Project for new cards that have no parent to inherit one from |
+| `TP_DEFAULT_TEAM_ID` | no | Team for new cards when none is given |
 
-pounce reads these from its environment and exits with a clear message if a
-required one is missing. It does not read `.env` files; `.env.example` lists
-the variables for reference.
+Keep the token out of config files: export it in your shell profile
+(`export TP_TOKEN=...`) and let the client pass it through, as the examples
+below do.
 
-## opencode setup
+## opencode
 
 Add the server and the four permission rules to `opencode.json` (global:
 `~/.config/opencode/opencode.json`):
@@ -59,7 +55,7 @@ Add the server and the four permission rules to `opencode.json` (global:
   "mcp": {
     "pounce": {
       "type": "local",
-      "command": ["node", "/path/to/pounce/build/index.js"],
+      "command": ["npx", "-y", "pounce@1"],
       "enabled": true,
       "environment": {
         "TP_BASE_URL": "https://yourcompany.tpondemand.com",
@@ -76,22 +72,20 @@ Add the server and the four permission rules to `opencode.json` (global:
 }
 ```
 
-opencode prefixes MCP tools with the server's config key, so the key must be
-`pounce` for the rules above to match (`read_card` is exposed as
-`pounce_read_card`). Tools are registered without a prefix of their own, and
-every new tool falls under one of the four rules automatically.
+opencode prefixes MCP tools with the server's key, so the key must be `pounce`
+for these rules to match (`read_card` becomes `pounce_read_card`). Restart
+opencode after changing the file; `opencode mcp list` shows whether it connected.
 
-## Claude Code setup
+## Claude Code
 
-Register the server once for all your projects. `${TP_TOKEN}` is expanded from
-your environment when the server starts, so the token is not stored in the
-config file:
+Register the server once for all your projects. `${TP_TOKEN}` is read from your
+environment when the server starts, so the token is not stored in the config:
 
 ```sh
 claude mcp add-json pounce --scope user '{
   "type": "stdio",
-  "command": "node",
-  "args": ["/path/to/pounce/build/index.js"],
+  "command": "npx",
+  "args": ["-y", "pounce@1"],
   "env": {
     "TP_BASE_URL": "https://yourcompany.tpondemand.com",
     "TP_TOKEN": "${TP_TOKEN}"
@@ -112,24 +106,47 @@ Then add the four permission rules to `~/.claude/settings.json`:
 ```
 
 Claude Code names MCP tools `mcp__<server>__<tool>`, so the server name must be
-`pounce` for these rules to match. Check the connection with `claude mcp get
-pounce` or `/mcp` inside a session.
+`pounce` for these rules to match. Check the connection with
+`claude mcp get pounce`, or `/mcp` inside a session.
+
+## Other MCP clients
+
+Any client that starts local (stdio) servers works. Most accept an
+`mcpServers` block like this one (Claude Desktop, Cursor, ...):
+
+```json
+{
+  "mcpServers": {
+    "pounce": {
+      "command": "npx",
+      "args": ["-y", "pounce@1"],
+      "env": {
+        "TP_BASE_URL": "https://yourcompany.tpondemand.com",
+        "TP_TOKEN": "your-access-token"
+      }
+    }
+  }
+}
+```
+
+Then map the four tool-name prefixes below to the client's permission system.
 
 ## Permission tiers
 
-`admin_*` tools write configuration (projects, teams, users, processes,
-workflows, ...) and need an administrator token. Keep them denied unless you mean
-to use them.
+Every tool name starts with its tier, so one rule per tier covers all tools,
+including ones added in later versions:
 
-Any other MCP client works the same way: start `node build/index.js` with the
-environment variables above, and map the four tool-name prefixes to its
-permission system.
+| Prefix | What it does | Suggested rule |
+|---|---|---|
+| `read_` | Reads only | allow |
+| `write_` | Creates and updates cards, comments, time, relations, ... | ask |
+| `delete_` | Deletes | ask |
+| `admin_` | Changes configuration (projects, teams, users, processes, workflows, ...); needs an administrator token | deny |
 
 ## Tools
 
-58 tools in four tiers. Workflow tools (layer 2) are the ones to use day to day.
-Generic tools (layer 1) are the escape hatch that reaches every resource and
-operation your instance reports.
+58 tools. Workflow tools are the ones to use day to day. Generic tools are the
+escape hatch that reaches every resource and operation your instance reports.
 
 **read** (26)
 
@@ -160,11 +177,12 @@ operation your instance reports.
 
 - Effort belongs to a role. `write_set_role_effort` writes role effort rows; the
   card total is computed by Targetprocess and is never written directly.
-- A task's role efforts roll up into its user story, replacing the story's value
-  for that role. The story's before/after values are reported.
+- Changing a task's role effort makes Targetprocess recalculate its user story;
+  the story's before/after values are reported.
 - Cards created with `write_create_card` lose the assignments Targetprocess adds
-  by default, and get exactly the people you asked for. What was removed is
-  reported. On existing cards nobody is removed unless you ask (`exclusive`).
+  by default, including ones it adds a moment later, and get exactly the people
+  you asked for. What was removed is reported. On existing cards nobody is
+  removed unless you ask (`exclusive`).
 - State changes and new children report the parent card's state before and after.
 - New cards inherit the parent's project. If no project can be resolved, nothing
   is sent.
@@ -186,35 +204,5 @@ operation your instance reports.
 
 ## Development
 
-```sh
-npm test            # unit + contract tests (stubbed fetch, no network)
-npm run typecheck   # src and tests
-npm run build       # compile to build/
-npm run snapshot    # regenerate src/catalog/snapshot.json from TP_BASE_URL
-```
-
-`CLAUDE.md` holds the architecture, domain rules, conventions and the confirmed
-Targetprocess API surface, including the quirks found on a live instance.
-
-### Live tests
-
-Live tests hit the instance in `TP_BASE_URL`, run only with `TP_LIVE=1`, and are
-never part of `npm test`. The read-only ones need nothing else:
-
-```sh
-npm run test:live
-```
-
-The acceptance run **writes**. It changes the state, assignments, role efforts
-and BackEnd/FrontEnd fields of a user story you name, and creates a task and a
-bug under it (both deleted afterwards unless `TP_LIVE_KEEP=1`):
-
-```sh
-TP_LIVE_STORY=<test story id> \
-TP_LIVE_DEVELOPERS="<person>,<person>" \
-TP_LIVE_PRODUCT_OWNER="<person>" \
-npm run test:live -- tests/live/acceptance.test.ts
-```
-
-Optional: `TP_LIVE_BUG_ASSIGNEE` (defaults to the first developer) and
-`TP_LIVE_TEAM` (defaults to `Core Team`).
+Building from source, running the tests and releasing are described in
+[DEVELOPMENT.md](DEVELOPMENT.md).

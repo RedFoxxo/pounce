@@ -12,9 +12,10 @@ Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
 registering one tool per endpoint.
 
-Status: implemented (58 tools). Reads are verified against the live instance;
-writes are verified against the docs and a stateful fake only. See "Status and
-remaining work" at the end.
+Status: version 1.0.0 (58 tools), verified end to end against the live
+instance. Published to npm; users install it with `npx`, not from source. Build,
+test and release steps are in `DEVELOPMENT.md`. See "Status and remaining work"
+at the end.
 
 ## Why a rewrite — lessons from the old server
 
@@ -446,5 +447,5 @@ Remaining:
    It already passes against the fake (`tests/tools/acceptance.test.ts`). Card
    #36410 itself no longer exists (404). While running it, confirm the
    metadata-inferred write shapes listed under "Confirmed API surface".
-2. **Retire the old fork** (`~/Repos/targetprocess-mcp-server`) only after the
-   live acceptance run passes.
+2. **Retire the old fork** (`~/Repos/targetprocess-mcp-server`): the live
+   acceptance run has passed and opencode now uses pounce.
