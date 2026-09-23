@@ -12,7 +12,7 @@ Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
 registering one tool per endpoint.
 
-Status: version 1.0.0 (58 tools), verified end to end against the live
+Status: version 1.0.1 (58 tools), verified end to end against the live
 instance. Published to npm; users install it with `npx`, not from source. Build,
 test and release steps are in `DEVELOPMENT.md`. See "Status and remaining work"
 at the end.
@@ -375,6 +375,7 @@ from the instance, never hardcoded.
 | Nested create | e.g. story with `"Tasks":{"Items":[...]}` in one POST | docs |
 | Set collections | `"Assignments"`, `"AssignedTeams"`, `"RoleEfforts"` as `{"Items":[...]}` on the card POST. **POST appends; to replace, DELETE the existing items first** | docs |
 | Tags | `"Tags":"a,b"` replaces all tags; `"TagObjects":[{"Name":...}]` or `[{"Id":...}]` adds | docs |
+| Rich text | Descriptions and comments are HTML by default; Markdown is stored as text starting with `<!--markdown-->` (**live**: stored byte for byte; the instance has Markdown descriptions and comments written in the UI). `textToHtml(text, format)` adds the marker for `format: "markdown"`; `htmlToText` reads HTML back as light Markdown and returns Markdown unchanged | **live** |
 | Custom fields | By name (`"MyField": value`) or `"CustomFields":[{"Name","Value"}]`; entity-type fields take `{"Id","Kind"}`. System fields (`IsSystem`, e.g. "Total Hours") are refused with a 400 that fails the **whole** write, so pounce refuses them before sending | `CustomFields` array **live**; entity form docs |
 | Time tracking | `POST /api/v1/Times` answers 400 "Time is not available for current process" where the process lacks the "Time Tracking" practice (`Processes/{id}?include=[Practices[Name]]`; **live**, process 13). Our instance tracks time in a custom `TimeRecord` type instead: custom fields "Hours" (number, required) and "Date", references `ConnectedUser` and `Task`/`UserStory`/`Bug`/…; an automation renames records ("<card> / <person> / <hours>h") and fills day/week/month periods. `CustomFields.Date gte '…'` filters server-side. `write_log_time`/`read_times` pick `Time` or `TimeRecord` per process (`src/domain/time.ts`) | **live** |
 | Response shaping on write | `resultFormat`, `resultInclude`, `resultExclude`, `resultAppend` | docs |
@@ -419,8 +420,8 @@ their live status (test story #36512, 2026-09-23):
   (creating a missing row; cards came with a row per role); `Time.Date` as
   `YYYY-MM-DD` (time tracking is off in our process; `TimeRecord` is used and
   verified live instead); whether deleting a user
-  story also deletes its tasks (`delete_card` requires `withChildren: true`
-  either way).
+  story also deletes its tasks: **yes** (**live**, #36531/#36532 deleted in the
+  same millisecond), which is why `delete_card` requires `withChildren: true`.
 
 Unresolved: the docs also show `/api/deletedItems/v1/{projects|users}/{id}/restore`,
 but `GET /api/deletedItems/v1/projects` returns 404 on our instance. Prefer

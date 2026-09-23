@@ -687,3 +687,36 @@ describe('time records (instances without the Time Tracking practice)', () => {
     expect(h.stub.writes).toHaveLength(0)
   })
 })
+
+describe('1.0.1: Markdown and rename label', () => {
+  it('write_create_card and write_update_card store Markdown with the marker and verify it', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    const created = await h.call('write_create_card', { type: 'Task', name: 'T', parent: 36216, description: '## Plan\n\n1. one\n2. two', format: 'markdown' })
+    expect(created.isError, created.text).toBe(false)
+    expect((h.stub.writes[0]!.body as { Description: string }).Description).toBe('<!--markdown-->## Plan\n\n1. one\n2. two')
+    expect(created.json.notPersisted).toBeUndefined()
+    expect(created.json.card.description).toBe('## Plan\n\n1. one\n2. two')
+    const updated = await h.call('write_update_card', { id: 36216, description: '**bold**', format: 'markdown' })
+    expect(updated.json.notPersisted).toBeUndefined()
+    expect(h.stub.writes.at(-1)!.body).toMatchObject({ Description: '<!--markdown-->**bold**' })
+  })
+
+  it('write_comment accepts format markdown', async () => {
+    const { tp } = world()
+    tp.stub.post('/api/v1/Comments', (call: { body: unknown }) => ({ Id: 1, ...(call.body as object), General: { Id: 36216, Name: 'x' } }))
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_comment', { id: 36216, text: '- a\n- b', format: 'markdown' })
+    expect(h.stub.writes[0]!.body).toEqual({ General: { Id: 36216 }, Description: '<!--markdown-->- a\n- b' })
+    expect(r.json.notPersisted).toBeUndefined()
+  })
+
+  it('after a rename the result shows the new name and the old one', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_update_card', { id: 36216, name: 'Renamed' })
+    expect(r.json.card).toMatchObject({ id: 36216, name: 'Renamed' })
+    expect(r.json.renamedFrom).toBe('Review and manage orders')
+    expect(r.json.now.name).toBe('Renamed')
+  })
+})

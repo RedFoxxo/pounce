@@ -4,6 +4,19 @@ Versions follow [Semantic Versioning](https://semver.org/). The version lives in
 `package.json` and `src/version.ts` (a test keeps them equal) and is reported to
 MCP clients in the server handshake.
 
+## 1.0.1 — 2026-09-23
+
+- Markdown descriptions and comments: `write_create_card`, `write_update_card`
+  and `write_comment` take `format: "markdown"` (also `html` or `text`), and
+  pounce stores the text as a Targetprocess Markdown description. Before, plain
+  Markdown was escaped and showed its `**` and `#` literally.
+- Rich-text fields are read back as light Markdown instead of flattened text:
+  headings, bold/italic/strikethrough, code and code blocks, links, images,
+  nested bulleted and numbered lists, quotes, tables and rules survive.
+  Colours, fonts and alignment have no Markdown form and are dropped from the
+  read-back only; Targetprocess keeps them.
+- After a rename, `write_update_card` shows the new name and `renamedFrom`.
+
 ## 1.0.0 — 2026-09-23
 
 First release.

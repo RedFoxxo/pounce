@@ -28,6 +28,11 @@ instead of the published package, point your client at it, e.g. in opencode:
 
 `.env.example` lists the variables. pounce does not read `.env` files itself.
 
+Inside this repository, `npx -y @redfoxxo/pounce@1` fails ("pounce: command not
+found"): npx resolves the package to the repo itself. Give the MCP client a
+different working directory for the published package (opencode: `"cwd"`), or
+run the local build.
+
 ## Commands
 
 ```sh

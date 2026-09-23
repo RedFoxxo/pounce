@@ -1,6 +1,6 @@
 {
   "name": "@redfoxxo/pounce",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for Targetprocess: read and manage cards by name, with your team rules enforced and every write verified",
   "keywords": [
     "mcp",

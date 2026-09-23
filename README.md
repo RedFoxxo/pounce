@@ -3,7 +3,7 @@
 An MCP server for [Targetprocess](https://www.ibm.com/products/targetprocess): lets AI
 assistants read and manage your cards through the Targetprocess REST API.
 
-Version 1.0.0. See [CHANGELOG.md](CHANGELOG.md).
+Version 1.0.1. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Why pounce
 
@@ -192,6 +192,8 @@ escape hatch that reaches every resource and operation your instance reports.
 - Time is logged where your process keeps it: standard Time entries, or, on
   instances that track time in a custom `TimeRecord` type (hours and date fields),
   a time record linked to the person and the card.
+- Descriptions and comments can be written as Markdown (`format: "markdown"`),
+  HTML or plain text, and are read back as Markdown either way.
 - Every write is read back, and any value that did not persist is listed under
   `notPersisted`. If a multi-step write fails partway, the error says what was
   already done.

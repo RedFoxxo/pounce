@@ -49,8 +49,10 @@ function resolvePerson(ctx: ToolContext, input: string | number, options: { allo
   return String(input).trim().toLowerCase() === 'me' ? ctx.directory.me() : ctx.directory.user(input, options)
 }
 
-function cardLabel(card: CardRead) {
-  return { id: card.info.id, type: card.info.entityType, name: card.info.name }
+/** id, type and name of a card; `after` (a read-back) gives the name after a rename. */
+function cardLabel(card: CardRead, after?: Raw) {
+  const name = typeof after?.Name === 'string' ? after.Name : card.info.name
+  return { id: card.info.id, type: card.info.entityType, name }
 }
 
 /** A write failed after earlier writes succeeded: say exactly what was done. */
@@ -445,6 +447,13 @@ function verdict(v: Verdict) {
 // ---------------------------------------------------------------- create
 
 const refOrNull = z.union([id, z.null()])
+const richFormat = z
+  .enum(['markdown', 'html', 'text'])
+  .optional()
+  .describe(
+    'How the text is written: markdown (stored as a Targetprocess Markdown description), html (sent as-is), or text (plain lines). ' +
+      'Default: HTML and text starting with <!--markdown--> are kept, anything else is treated as plain text, so Markdown needs format: markdown.',
+  )
 const tag = z.string().trim().min(1).refine((t) => !t.includes(','), 'a tag cannot contain a comma (Targetprocess separates tags with commas)')
 
 /** Fields that have their own argument or tool, because a domain rule applies to them. */
@@ -498,13 +507,14 @@ export const writeCreateCard = defineTool({
     'role efforts, tags and custom fields, applying the team rules: the project is inherited from the parent (task ← story, story ← feature, ' +
     'feature ← epic, bug ← its card, test case ← test plan) and the call fails before posting if none resolves; assignments Targetprocess adds by ' +
     'default are removed and reported, then exactly the requested people are assigned; effort is written per role; the parent\'s state and ' +
-    'role efforts before/after are reported. Description: HTML is sent as-is, plain text lines become paragraphs.',
+    'role efforts before/after are reported. Description: pass format markdown for Markdown; HTML is sent as-is, plain text lines become paragraphs.',
   input: {
     type: z.string().min(1).describe('Entity type, e.g. UserStory, Task, Bug'),
     name: z.string().min(1),
     parent: id.optional().describe('Parent card id (story for a task, feature for a story, test plan for a test case, ...)'),
     project: nameOrId.optional().describe('Project; defaults to the parent\'s project'),
     description: z.string().optional(),
+    format: richFormat,
     state: nameOrId.optional(),
     teams: z.array(nameOrId).optional().describe('Teams to assign; TP_DEFAULT_TEAM_ID applies when omitted'),
     assignees: z.array(z.object({ user: person, role })).optional(),
@@ -559,7 +569,7 @@ export const writeCreateCard = defineTool({
     }
     body.Project = { Id: projectId }
 
-    if (args.description !== undefined) body.Description = textToHtml(args.description)
+    if (args.description !== undefined) body.Description = textToHtml(args.description, args.format)
     if (args.state !== undefined) {
       if (processId === undefined) return invalid('the project has no process, so states cannot be resolved')
       const state = await ctx.directory.state(processId, resource.name, args.state)
@@ -727,12 +737,13 @@ export const writeUpdateCard = defineTool({
   name: 'write_update_card',
   description:
     'Update a card: name, description, tags (tags replaces the whole list; addTags/removeTags edit it), release, iteration, team iteration ' +
-    '(null clears), parent, or other settable fields. Changes are read back; removed tags are reported. For a test case, parent ADDS it to ' +
+    '(null clears), parent, or other settable fields. Description: pass format markdown for Markdown. Changes are read back; removed tags are reported. For a test case, parent ADDS it to ' +
     'that test plan (existing plans are kept). For state, people, effort, teams and custom fields use the dedicated write_* tools.',
   input: {
     id,
     name: z.string().min(1).optional(),
     description: z.string().optional(),
+    format: richFormat,
     tags: z.array(tag).optional(),
     addTags: z.array(tag).optional(),
     removeTags: z.array(z.string().min(1)).optional(),
@@ -749,7 +760,7 @@ export const writeUpdateCard = defineTool({
     const catalog = await ctx.catalog()
     const body: Record<string, unknown> = {}
     if (args.name !== undefined) body.Name = args.name
-    if (args.description !== undefined) body.Description = textToHtml(args.description)
+    if (args.description !== undefined) body.Description = textToHtml(args.description, args.format)
 
     const currentTags = parseTags(card.raw.Tags) ?? []
     let removedTags: string[] = []
@@ -796,10 +807,11 @@ export const writeUpdateCard = defineTool({
     const after = reread.data
     const checked = await verifyWritten(ctx, card.info, body, after, { parentField, parentId: args.parent, extraFields })
     return success({
-      card: cardLabel(card),
+      card: cardLabel(card, after),
+      ...(after.Name !== card.info.name ? { renamedFrom: card.info.name } : {}),
       updated: Object.keys(body),
       ...(removedTags.length ? { removedTags } : {}),
-      now: shapeCard(card.info, after),
+      now: shapeCard({ ...card.info, name: typeof after.Name === 'string' ? after.Name : card.info.name }, after),
       ...verdict(checked),
     })
   },
@@ -809,10 +821,12 @@ export const writeUpdateCard = defineTool({
 
 export const writeComment = defineTool({
   name: 'write_comment',
-  description: 'Add a comment to a card; plain text lines become paragraphs, HTML is sent as-is. replyTo answers another comment.',
-  input: { id, text: z.string().min(1), replyTo: id.optional(), private: z.boolean().optional() },
+  description:
+    'Add a comment to a card. Pass format markdown for Markdown; otherwise plain text lines become paragraphs and HTML is sent as-is. ' +
+    'replyTo answers another comment.',
+  input: { id, text: z.string().min(1), format: richFormat, replyTo: id.optional(), private: z.boolean().optional() },
   handler: async (args, ctx) => {
-    const body: Record<string, unknown> = { General: { Id: args.id }, Description: textToHtml(args.text) }
+    const body: Record<string, unknown> = { General: { Id: args.id }, Description: textToHtml(args.text, args.format) }
     if (args.replyTo !== undefined) body.ParentId = args.replyTo
     if (args.private !== undefined) body.IsPrivate = args.private
     const r = await ctx.v1.create<Raw>('Comments', body, { resultInclude: '[Id,Description,General[Id,Name],ParentId,CreateDate]' })
