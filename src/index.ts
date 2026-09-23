@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { ConfigError, loadConfig } from './config.js'
+import { stderrLogger } from './log.js'
 import { createServer } from './server.js'
+import { createContext } from './tools/context.js'
 
 async function main(): Promise<void> {
   let config
@@ -15,7 +17,7 @@ async function main(): Promise<void> {
     throw error
   }
 
-  const server = createServer({ config })
+  const server = createServer(createContext(config, { log: stderrLogger }))
   await server.connect(new StdioServerTransport())
   process.stderr.write('pounce: ready on stdio\n')
 }

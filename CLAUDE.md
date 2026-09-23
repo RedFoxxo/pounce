@@ -161,6 +161,7 @@ rejected with a message listing the valid options.
 | `admin_create` | POST a new configuration/administration entity (list below) |
 | `admin_update` | Update a configuration/administration entity |
 | `admin_delete` | Delete a configuration/administration entity |
+| `admin_collection_add`, `admin_collection_remove` | Collection add/remove on a configuration/administration entity (e.g. Team `TeamMembers`) |
 | `admin_undelete` | Restore deleted entities (administrator token required) |
 
 Configuration and administration resources go through `admin_create`,

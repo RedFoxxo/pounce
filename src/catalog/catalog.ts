@@ -11,15 +11,15 @@ export type Lookup<T> = { ok: true; value: T } | { ok: false; message: string }
 /** Closest names first: prefix/substring matches, then small edit distance. */
 export function suggestions(input: string, names: string[], max = 8): string[] {
   const q = input.toLowerCase()
+  const threshold = Math.max(2, Math.floor(q.length / 3))
   const scored = names.map((name) => {
     const n = name.toLowerCase()
-    let score = distance(q, n)
-    if (n.startsWith(q) || q.startsWith(n)) score -= 100
-    else if (n.includes(q) || q.includes(n)) score -= 50
-    return { name, score }
+    const d = distance(q, n)
+    const contains = n.includes(q)
+    return { name, keep: d <= threshold || contains, score: d - (n.startsWith(q) ? 3 : 0) - (contains ? 1 : 0) }
   })
   return scored
-    .filter((s) => s.score <= Math.max(3, Math.floor(q.length / 2)))
+    .filter((s) => s.keep)
     .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
     .slice(0, max)
     .map((s) => s.name)
