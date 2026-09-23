@@ -12,11 +12,9 @@ Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
 registering one tool per endpoint.
 
-Status: steps 1–8 and 10 of the implementation plan are done. Step 9 has
-passed against the stateful fake (`tests/tools/acceptance.test.ts`); the live
-run (`tests/live/acceptance.test.ts`) still needs a test story named by the
-user. Until it passes, write paths are verified against docs and the fake
-only, and the old fork stays.
+Status: implemented (58 tools). Reads are verified against the live instance;
+writes are verified against the docs and a stateful fake only. See "Status and
+remaining work" at the end.
 
 ## Why a rewrite — lessons from the old server
 
@@ -45,11 +43,13 @@ any of these.
 - `@modelcontextprotocol/sdk` with the stdio transport
 - `zod` for tool input schemas
 - `vitest` for tests
-- No other runtime dependencies unless a concrete need appears (HTML → text
-  for descriptions is the one expected need; choose a small library then).
+- No other runtime dependencies. HTML ↔ text for descriptions is a small
+  in-house converter (`src/format/html.ts`); add a library only for a concrete
+  need it cannot meet.
 
-Pin exact current versions when scaffolding. Run `npm test` and `npm run build`
-before every commit.
+Versions are pinned exactly. Before every commit run `npm run typecheck`,
+`npm test` and `npm run build`; `npm run snapshot` regenerates
+`src/catalog/snapshot.json` from `TP_BASE_URL` (read-only).
 
 ## Configuration
 
@@ -67,23 +67,35 @@ Fail at startup with a clear message if a required variable is missing.
 
 ```
 src/
-  index.ts            server bootstrap, tool registration
-  config.ts           env loading + validation
+  index.ts             bootstrap: config, context, stdio transport
+  server.ts            tool registration; tier check and MCP annotations
+  config.ts            env loading + validation
+  log.ts, version.ts
   http/
-    v1.ts             REST v1 client: get / list (auto-paging) / create / update / delete / collection add+remove
-    v2.ts             REST v2 query client (read-only)
-    result.ts         Result<T> = { ok: true, data } | { ok: false, status, body }
-    redact.ts         token redaction for logs
+    core.ts            the one request function: token, Accept, redacted stderr log, Result
+    v1.ts              REST v1: get / list (auto-paging) / create / update / bulk / delete / collection remove
+    v2.ts              REST v2 and history v2 queries (read-only, auto-paging)
+    result.ts          Result<T> = { ok: true, status, data } | { ok: false, status, message, body }
+    redact.ts          token redaction
   catalog/
-    catalog.ts        resource catalog built from /api/v1/Index/meta + /{Resource}/meta
-    snapshot.json     committed baseline catalog (see "Confirmed API surface")
-  resolve/            name → id resolution (users, roles, teams, states, projects, custom field options)
-  domain/             the Targetprocess rules (effort, assignments, state, creation)
+    loader.ts          index scan, JSON/XML /meta, history probing
+    catalog.ts         lookups, suggestions, live-with-snapshot-fallback provider
+    snapshot.json      committed baseline catalog (regenerate with npm run snapshot)
+    snapshot-cli.ts
+  resolve/             name → id: directory (users, roles, teams, projects, states,
+                       custom fields; cached), match (never-guess rules), card (id → type/project)
+  domain/              the Targetprocess rules: cards (read_card include/shape, parent
+                       chain), parent (side-effect snapshots), assignments, efforts,
+                       custom-fields, create (parent links)
+  format/              dates, HTML ↔ text, response shaping
   tools/
-    generic/          layer 1: catalog-driven tools
-    workflow/         layer 2: curated task-oriented tools
-  format/             response shaping, HTML → text
-tests/
+    types.ts, context.ts, schema.ts, respond.ts, index.ts
+    generic/           layer 1: read, write (+ admin), extras (v2, history, storage,
+                       attachments, undelete), validate (catalog payload checks), policy (admin gating)
+    workflow/          layer 2: read, write, delete, common
+scripts/copy-assets.mjs  copies snapshot.json into build/
+tests/                 contract tests (tools/), helpers (fetch stub, MCP harness, fake
+                       Targetprocess), fixtures, live/ (TP_LIVE=1 only)
 ```
 
 ### HTTP layer
@@ -188,13 +200,13 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 
 | Tool | Notes |
 |---|---|
-| `read_card` | Any card by id: type, name, state, project, parent chain, teams, **assignments**, **role efforts**, custom fields, tags. Description as plain text. |
+| `read_card` | Any card by id: type, name, state, project, parent chain, teams with team states, **assignments**, **role efforts**, effort totals, release/iteration, custom fields, tags, counts. Description as plain text. |
 | `read_search` | Cards by text, type, state, project, assignee, tag |
 | `read_my_work` | Cards assigned to the current user, by state |
 | `read_states` | States available to a card (or project + entity type), including team sub-workflow states flagged `isTeamWorkflow` |
 | `read_people` | Users by name/login/email, fully paged; ambiguous matches listed, never guessed |
 | `read_teams`, `read_roles`, `read_projects`, `read_releases`, `read_iterations` | Reference data |
-| `read_custom_field_options` | Allowed values of a dropdown custom field for an entity type |
+| `read_custom_field_options` | Custom fields of a card's type (or project + type) with their allowed dropdown values |
 | `read_comments`, `read_relations`, `read_times`, `read_attachments` | Per card (history: layer 1 `read_history`) |
 | `read_test_plan` | Test plan with its test cases and steps; test runs |
 
@@ -202,8 +214,8 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 
 | Tool | Notes |
 |---|---|
-| `write_create_card` | Any card type with parent, title, description, state, team, assignees, role efforts, tags. Applies the creation rules below. |
-| `write_update_card` | Title, description, tags, release, iteration, parent |
+| `write_create_card` | Any card type with parent, title, description, state, teams, assignees, role efforts, tags, custom fields. Applies the creation rules below. |
+| `write_update_card` | Title, description, tags (set or add/remove), release, iteration, team iteration, parent, other settable fields |
 | `write_set_state` | By state name or id; resolves against the card's own workflow; reports parent side effects |
 | `write_assign` | User + role by name or id; `exclusive: true` removes others in that role only when explicitly asked |
 | `write_unassign` | One exact assignment |
@@ -215,9 +227,16 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 | `write_test_run` | Record a test plan run and per-test-case results |
 
 The `delete_` tier adds only what layer 1 `delete_entity` cannot express:
-`delete_card` (card by id alone, type resolved, parent side effects reported) and
-`delete_relation` (by the two related card ids). Comments, times and other plain
-entities are deleted with `delete_entity`.
+`delete_card` (card by id alone, type resolved, parent side effects reported;
+a card with child cards needs `withChildren: true`) and `delete_relation` (by the
+two related card ids). Comments, times and other plain entities are deleted with
+`delete_entity`.
+
+The `fields` escape hatch of `write_create_card` / `write_update_card` refuses
+fields a rule applies to (`Effort`, `Assignments`, `AssignedTeams`,
+`RoleEfforts`, `CustomFields`, `EntityState`, `Project`, parent references,
+tags, ...) and names the dedicated argument or tool instead. `write_attachment`
+takes base64 content only; pounce never reads local files for upload.
 
 ## Domain rules (enforced in code)
 
@@ -250,6 +269,10 @@ entities are deleted with `delete_entity`.
 9. **Collection writes append.** Posting `Assignments`, `AssignedTeams` or
    `TagObjects` adds to what is there. Anything that means "set" or "only" must
    delete the existing items first, and say what it removed.
+10. **Say what is known.** If a read-back or a parent read fails, report a
+    warning (or `unknown`) instead of a verdict. If a multi-step write fails
+    partway, list what was already done. A write with no response (timeout) has
+    an unknown outcome: say so rather than implying nothing happened.
 
 ## Tool conventions
 
@@ -274,14 +297,21 @@ entities are deleted with `delete_entity`.
 
 ## Testing
 
-- **Contract tests** stub `fetch` with the payload TP really returns and drive the
-  real client through the handler. They are required for every tool.
+- **Contract tests** (`tests/tools/`) stub `fetch` with the payload TP really
+  returns and drive the real client through the MCP server
+  (`tests/helpers/harness.ts`: in-memory transport, real handlers). Required for
+  every tool.
+- **Stateful fake** (`tests/helpers/fake-tp.ts`) reproduces the behaviours the
+  domain rules exist for: default assignments on creation, task effort rollup,
+  a story moving when a task leaves its initial state. Write-tool and
+  acceptance tests run against it.
 - **Payload tests** assert the exact request body: no empty references, no
   unrequested fields.
 - **Catalog coverage test**: every resource × operation and every addable/removable
   collection in `snapshot.json` is reachable through a layer 1 tool.
-- **Live smoke tests** (`npm run test:live`) run only when `TP_LIVE=1` and target
-  cards the user names. They are never part of `npm test`.
+- **Live tests** (`npm run test:live`, `tests/live/`) run only with `TP_LIVE=1`
+  and are never part of `npm test`. Read tests need nothing else; the acceptance
+  run writes and needs a story the user names (`TP_LIVE_STORY`, see README).
 - When fixing a bug, first write a test that fails against the old code.
 
 ## Confirmed API surface
@@ -295,17 +325,17 @@ administrator**.
 
 Evidence key: **live** = verified on our instance; **docs** = documented, not
 exercised live because it writes data. Verify every **docs** row against a test
-card before implementing it.
+card (the live acceptance run) before relying on it.
 
 ### Resources
 
 Our instance exposes **89 resources** in `/api/v1/Index/meta` (78 full CRUD, 3
 update + delete, 2 update only, 5 read only, 1 broken), plus **56 unlisted
-resources** found by probing every `{X}Histories`/`{X}SimpleHistories` (the
-research doc lists the 28 found by hand; `snapshot.json` is authoritative), and **1054 collections**, 543 of them
-addable/removable. The full per-resource table is in
-`docs/research/catalog-mamami-2026-09-23.md`; it is the baseline for
-`snapshot.json`.
+resources** found by probing every `{X}Histories`/`{X}SimpleHistories` and
+`GeneralConversions`, and **1054 collections**, 543 of them addable/removable.
+`src/catalog/snapshot.json` holds the full per-resource catalog (fields,
+references, collections with their flags); `read_meta` shows it, and
+`tests/catalog.test.ts` pins these counts.
 
 Compared with the public demo instance (`md5.tpondemand.com`, 69 resources),
 ours has 21 extra **Extendable Domain** types (AcceptanceCriterion, ActionItem,
@@ -378,33 +408,22 @@ Unresolved: the docs also show `/api/deletedItems/v1/{projects|users}/{id}/resto
 but `GET /api/deletedItems/v1/projects` returns 404 on our instance. Prefer
 `/api/v1/undelete` and verify either route with an administrator before use.
 
-## Implementation plan
+## Status and remaining work
 
-Commit once per step; each step ends green (`npm test`, `npm run build`).
+Done: scaffold, HTTP layer and catalog, layer 1 tools with admin gating,
+resolvers, layer 2 read/write/delete tools, v2/history/storage/conversions/
+deleted items/attachment upload, README and opencode setup. Two review rounds
+over the write paths; their findings are fixed with regression tests.
 
-1. **Scaffold.** `package.json`, strict `tsconfig`, vitest, `.gitignore`
-   (`node_modules`, `build`, `.env`, `.cache`, `.codeindex`), `.env.example`,
-   config validation, stdio server that starts with zero tools.
-2. **HTTP layer + catalog.** v1 client with `Result`, paging, redaction, date
-   conversion; catalog loader; regenerate `snapshot.json` from our instance;
-   catalog coverage test.
-3. **Layer 1 generic tools**, including admin gating. At this point every
-   operation in the inventory is reachable.
-4. **Resolvers**: people (paged), roles, teams, projects, states per card, custom
-   field options, with the ambiguity rules.
-5. **Read workflow tools**, starting with `read_card` (it must return
-   assignments and role efforts).
-6. **Write workflow tools** with the domain rules and read-back verification:
-   `write_create_card`, `write_set_state`, `write_assign`/`write_unassign`,
-   `write_set_role_effort`, `write_set_custom_fields`, `write_team`, then the rest.
-7. **Delete tier.**
-8. **v2 query, history, storage, conversions, deleted items, attachments
-   upload** — verify each **docs** row from "Confirmed API surface" live first.
-9. **Acceptance run** against a test user story, reproducing the #36410 batch in
-   one pass: state Ready, two Developers + a Product Owner, role efforts, clear
-   BackEnd / set FrontEnd, a task in Coded with Core Team, 1h Developer effort and
-   one assignee, a bug assigned to one person, default assignments removed, parent
-   state reported.
-10. **README + opencode setup.** Document the four permission globs and the local
-    `node /path/to/pounce/build/index.js` server entry. Retire the old fork only
-    after step 9 passes.
+Remaining:
+
+1. **Live acceptance run** (`tests/live/acceptance.test.ts`) against a user story
+   the user names. It reproduces the #36410 batch in one pass: state Ready, two
+   Developers + a Product Owner, role efforts, clear BackEnd / set FrontEnd, a
+   task in Coded with Core Team, 1h Developer effort and one assignee, a bug
+   assigned to one person, default assignments removed, parent state reported.
+   It already passes against the fake (`tests/tools/acceptance.test.ts`). Card
+   #36410 itself no longer exists (404). While running it, confirm the
+   metadata-inferred write shapes listed under "Confirmed API surface".
+2. **Retire the old fork** (`~/Repos/targetprocess-mcp-server`) only after the
+   live acceptance run passes.
