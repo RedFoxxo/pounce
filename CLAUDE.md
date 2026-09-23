@@ -5,8 +5,8 @@ Guidance for working in this repository.
 ## What this is
 
 **pounce** is an MCP server for the [Targetprocess](https://www.ibm.com/products/targetprocess)
-REST API, built from scratch to replace the fork at
-`~/Repos/targetprocess-mcp-server`.
+REST API, built from scratch to replace an older fork
+(`SerhiiMaksymiv/targetprocess-mcp-server`), which has been retired.
 
 Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
@@ -447,5 +447,5 @@ Remaining:
    It already passes against the fake (`tests/tools/acceptance.test.ts`). Card
    #36410 itself no longer exists (404). While running it, confirm the
    metadata-inferred write shapes listed under "Confirmed API surface".
-2. **Retire the old fork** (`~/Repos/targetprocess-mcp-server`): the live
-   acceptance run has passed and opencode now uses pounce.
+2. **Old fork retired** (2026-09-23): the live acceptance run passed, opencode
+   uses the published package, and the local clone was removed.
