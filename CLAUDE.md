@@ -317,10 +317,13 @@ from the instance, never hardcoded.
 |---|---|---|
 | Auth | `access_token=<PAT>` query parameter. Alternatives: `apptio-opentoken` header, service `token`, Basic. Never call `GET /api/v1/Authentication` — it returns a service token | docs; PAT **live** |
 | Current user | `GET /api/v1/Users/LoggedUser` | **live** |
+| Where literals | Strings in v1 `where` are escaped with a backslash: `'it\'s'`; `''` is a 400 | **live** |
+| Tag filter | `TagObjects.Name eq 'x'` matches a tag exactly (case-insensitive) | **live** |
+| Assignee filter | `AssignedUser.Id eq N` on Assignables; `Assignments.GeneralUser.Id eq N` does not filter reliably | **live** |
 | Context | `GET /api/v1/Context` with `?ids=`, `?projectIds=&teamIds=`, `?acid=`: processes, practices (e.g. `IsStoryEffortEqualsSumTasksEffort`), terms, custom field definitions. No partial get. Read-only in practice despite its meta | **live** + docs |
 | Read one / list | `GET /api/v1/{Plural}/{id}`, `GET /api/v1/{Plural}` with `where`, `include`, `exclude`, `append` (e.g. `[Tasks-Count]`), `orderBy`, `take` ≤ 1000, `skip`, `innerTake` | **live** |
 | Inner collection | `GET /api/v1/{Plural}/{id}/{Collection}`. You cannot POST into an inner collection URL; create the child on its own collection with a reference to the parent | docs |
-| v2 query | `GET /api/v2/{Entity}` (singular) with `select`, `where`, `result` (aggregations), `orderBy`, `take`, `skip`, `filter` (board DSL), `isoDate`. Read-only | **live** + docs |
+| v2 query | `GET /api/v2/{Entity}` (singular) with `select`, `where`, `result` (aggregations), `orderBy`, `take`, `skip`, `filter` (board DSL), `isoDate`. Read-only. Without `isoDate=true` dates are `/Date(...)/` | **live** + docs |
 | Create | `POST /api/v1/{Plural}` without `Id` → 201 | docs; used by old server |
 | Update | `POST /api/v1/{Plural}` or `/{Plural}/{id}` **with** `Id` → 200. Posting an `Id` to create performs an update | docs |
 | Nested create | e.g. story with `"Tasks":{"Items":[...]}` in one POST | docs |
@@ -335,11 +338,11 @@ from the instance, never hardcoded.
 | Upload attachment | `POST /UploadFile.ashx`, multipart, fields `generalId` + one or more `file` | docs |
 | Download attachment | `GET /Attachment.aspx?AttachmentID={id}` needs Basic or cookie auth. **With a PAT it returns an HTML error page, not the file** | **live** (limitation confirmed) |
 | History (simple) | `/api/v1/{Plural}/{id}/History`, `{Entity}SimpleHistories` (v1 and v2). Only records state/effort/release/iteration changes | **live** |
-| History (full) | `{Entity}Histories` (v1/v2) and `/api/history/v2/{Entity}`, with `IsChanged{Field}` flags; also for Extendable Domain types | **live** |
+| History (full) | `{Entity}Histories` (v1/v2) and `/api/history/v2/{Entity}`, with `IsChanged{Field}` flags and a `Changes` list; also for Extendable Domain types. Filter by `SourceEntityId` (v1) / `sourceEntityId` (history v2); there is no `UserStory` reference on `UserStoryHistory` | **live** |
 | Conversions | `GET /api/v1/GeneralConversions` (`FromGeneralID`, `ActualGeneral`) | **live** |
-| Deleted items | `GET /api/v2/projects` or `/users` with `where=(DeleteDate!=null)&includeDeleted=true` | **live** |
+| Deleted items | `GET /api/v2/projects` or `/users` with `where=(DeleteDate!=null)&includeDeleted=true`. The v2 `next` link **drops** `includeDeleted`: page with your own `skip` and repeat every parameter | **live** |
 | Undelete | `POST /api/v1/undelete` `{"Id","EntityType"}` and `/api/v1/undelete/bulk`. **Administrator token required** — ours is not. Comments, milestones and programs cannot be undeleted | docs |
-| RESTful storage | `/storage/v1/` groups, `/storage/v1/{Group}` (query with `select`/`where`/`take`/`skip`), `/storage/v1/{Group}/{Key}` GET/POST/DELETE. POST **merges** `publicData`/`userData` (a `null` value deletes a key). Views and boards are stored here (`boards`, `boardGroups`, ...) | groups **live**, rest docs |
+| RESTful storage | `/storage/v1/` groups, `/storage/v1/{Group}` (query with `select`/`where`/`take`/`skip`), `/storage/v1/{Group}/{Key}` GET/POST/DELETE. POST **merges** `publicData`/`userData` (a `null` value deletes a key). Views and boards are stored here (`boards`, `boardGroups`, ...) | groups, group query and entry GET **live**; POST/DELETE docs |
 | Direct access permissions | `EntityPermission` CRUD + `/bulk`; feature is off by default | docs |
 
 ### Not in scope, with reasons

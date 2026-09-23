@@ -1,3 +1,4 @@
+import { extraAdminTools, extraDeleteTools, extraReadTools, extraWriteTools } from './generic/extras.js'
 import { genericReadTools } from './generic/read.js'
 import { adminTools, genericDeleteTools, genericWriteTools } from './generic/write.js'
 import type { ToolDef } from './types.js'
@@ -9,5 +10,17 @@ export type AnyToolDef = ToolDef<any>
 
 /** Every tool pounce registers, in registration order. */
 export function allTools(): AnyToolDef[] {
-  return [...workflowReadTools, ...genericReadTools, ...workflowWriteTools, ...genericWriteTools, ...workflowDeleteTools, ...genericDeleteTools, ...adminTools]
+  return [
+    ...workflowReadTools,
+    ...genericReadTools,
+    ...extraReadTools,
+    ...workflowWriteTools,
+    ...genericWriteTools,
+    ...extraWriteTools,
+    ...workflowDeleteTools,
+    ...genericDeleteTools,
+    ...extraDeleteTools,
+    ...adminTools,
+    ...extraAdminTools,
+  ]
 }

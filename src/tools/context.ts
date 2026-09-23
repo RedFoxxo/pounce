@@ -3,6 +3,7 @@ import type { Catalog } from '../catalog/catalog.js'
 import { CatalogProvider } from '../catalog/catalog.js'
 import { HttpCore, type FetchLike } from '../http/core.js'
 import { V1Client } from '../http/v1.js'
+import { V2Client } from '../http/v2.js'
 import { silentLogger, type Logger } from '../log.js'
 import { Directory } from '../resolve/directory.js'
 
@@ -11,6 +12,7 @@ export interface ToolContext {
   config: Config
   http: HttpCore
   v1: V1Client
+  v2: V2Client
   catalog: () => Promise<Catalog>
   /** Cached reference data for resolving names (users, roles, teams, projects, states, custom fields). */
   directory: Directory
@@ -35,5 +37,5 @@ export function createContext(config: Config, options: ContextOptions = {}): Too
     provider.start()
     catalog = () => provider.get()
   }
-  return { config, http, v1, catalog, directory: new Directory(v1), log }
+  return { config, http, v1, v2: new V2Client(http), catalog, directory: new Directory(v1), log }
 }
