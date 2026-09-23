@@ -4,6 +4,7 @@ import { CatalogProvider } from '../catalog/catalog.js'
 import { HttpCore, type FetchLike } from '../http/core.js'
 import { V1Client } from '../http/v1.js'
 import { silentLogger, type Logger } from '../log.js'
+import { Directory } from '../resolve/directory.js'
 
 /** Everything a tool handler may use. Built once per server. */
 export interface ToolContext {
@@ -11,6 +12,8 @@ export interface ToolContext {
   http: HttpCore
   v1: V1Client
   catalog: () => Promise<Catalog>
+  /** Cached reference data for resolving names (users, roles, teams, projects, states, custom fields). */
+  directory: Directory
   log: Logger
 }
 
@@ -32,5 +35,5 @@ export function createContext(config: Config, options: ContextOptions = {}): Too
     provider.start()
     catalog = () => provider.get()
   }
-  return { config, http, v1, catalog, log }
+  return { config, http, v1, catalog, directory: new Directory(v1), log }
 }
