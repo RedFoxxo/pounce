@@ -36,7 +36,8 @@ any of these.
 
 ## Stack
 
-- TypeScript (strict), ESM, Node `>=20`
+- TypeScript (strict), ESM, Node `>=22.12` (Node 20 is end-of-life, and vitest 5
+  requires 22.12)
 - `@modelcontextprotocol/sdk` with the stdio transport
 - `zod` for tool input schemas
 - `vitest` for tests
@@ -97,6 +98,12 @@ tests/
   the read-back needs no extra request when the response is enough.
 - v1 and v2 filter syntax differ (`eq` vs `==`/`=`); v1 `where` does not support
   `or`. Never share filter strings between the two clients.
+- v1 sorts with `orderBy=Field` or `orderByDesc=Field`; `orderBy=Field desc` is a
+  400 "Error during parameters parsing" (**live**).
+- Send **both** `format=json` and `Accept: application/json` (**live**). With only
+  `format=json`, errors come back as XML; with only the header, `/meta` comes
+  back as XML. With both, errors are JSON `{Status, Message, Details, ErrorId}`.
+  Summaries use `Message`; the raw body is always kept.
 - **curl note for manual probing:** pass `-g`. `[...]` in `include` and `{...}` in
   `select` are curl glob patterns and silently mangle the request otherwise.
 - Log method + redacted URL to stderr. stdout belongs to the MCP transport.
@@ -110,8 +117,11 @@ entry records the resource name, plural path, `CanCreate` / `CanUpdate` /
 `CanDelete`, every field with `CanSet` / `IsRequired` / type, and every
 collection with `CanAdd` / `CanRemove`.
 
-Two confirmed quirks the loader must handle:
+Three confirmed quirks the loader must handle:
 
+- **The index is not valid-as-intended JSON.** `/api/v1/Index/meta` repeats the
+  key `"ResourceMetadataDescription"` once per resource, so `JSON.parse` keeps
+  only the last one. Scan the raw text for every occurrence instead.
 - **The index is incomplete.** History resources and `GeneralConversions` answer
   `/meta` but are not listed. For every resource `X`, also probe `XHistories/meta`
   and `XSimpleHistories/meta`, and always probe `GeneralConversions/meta`.
@@ -130,9 +140,7 @@ rejected with a message listing the valid options.
 | `read_query` | GET a collection with `where`, `include`, `orderBy`, fully paged |
 | `read_collection` | GET a sub-collection, e.g. `UserStories/{id}/Tasks` |
 | `read_v2_query` | v2 query (`select`, `where`, aggregations) |
-| `write_create` | POST a new entity (resources with `CanCreate`) |
-| `write_update` | POST an update to an existing entity (`CanUpdate`) |
-| `read_history` | Simple or full change history of an entity (see "Confirmed API surface") |
+| `read_history` | Simple or full change history of any entity; the resource is resolved from the id when omitted, so it also serves cards (see "Confirmed API surface") |
 | `read_context` | `Context` for given entity/project/team ids: processes, practices, terms, custom field definitions |
 | `read_conversions` | `GeneralConversions`: an entity's id before or after a type conversion |
 | `read_deleted` | Deleted projects/users via v2 `includeDeleted=true` |
@@ -147,11 +155,14 @@ rejected with a message listing the valid options.
 | `delete_bulk` | Delete up to 500 entities of one resource by id |
 | `delete_collection_remove` | Remove items from a collection with `CanRemove` |
 | `delete_storage` | Delete a storage entry |
+| `admin_create` | POST a new configuration/administration entity (list below) |
+| `admin_update` | Update a configuration/administration entity |
+| `admin_delete` | Delete a configuration/administration entity |
 | `admin_undelete` | Restore deleted entities (administrator token required) |
 
 Configuration and administration resources go through `admin_create`,
-`admin_update`, `admin_delete` instead, and the generic write/delete tools refuse
-them: `CustomRule`, `CustomField`, `EntityPermission`, `EntityState`,
+`admin_update`, `admin_delete` instead, and the generic write/delete tools
+(including bulk and collection tools) refuse them: `CustomRule`, `CustomField`, `EntityPermission`, `EntityState`,
 `GlobalSettings`, `Priority`, `Process`, `Program`, `Project`, `ProjectMember`,
 `RequestType`, `Role`, `RoleEntityType`, `RoleEntityTypeProcessSetting`,
 `Severity`, `Team`, `TeamMember`, `TeamProject`, `Term`, `User`, `Workflow`.
@@ -176,7 +187,7 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 | `read_people` | Users by name/login/email, fully paged; ambiguous matches listed, never guessed |
 | `read_teams`, `read_roles`, `read_projects`, `read_releases`, `read_iterations` | Reference data |
 | `read_custom_field_options` | Allowed values of a dropdown custom field for an entity type |
-| `read_comments`, `read_relations`, `read_times`, `read_attachments`, `read_history` | Per card |
+| `read_comments`, `read_relations`, `read_times`, `read_attachments` | Per card (history: layer 1 `read_history`) |
 | `read_test_plan` | Test plan with its test cases and steps; test runs |
 
 **Write**
@@ -191,11 +202,13 @@ the domain rules. Prefer them; layer 1 is the escape hatch.
 | `write_set_role_effort` | One or more roles on a card; reports rollup side effects |
 | `write_set_custom_fields` | Validates dropdown values against `read_custom_field_options` before writing |
 | `write_team` | Add or remove a team on a card |
-| `write_comment`, `write_log_time`, `write_relate`, `write_attach`, `write_follow` | |
+| `write_comment`, `write_log_time`, `write_relate`, `write_follow` | Attachments: layer 1 `write_attachment` |
 | `write_test_cases` | Create test cases with steps under a test plan; record test runs |
 
-`delete_card`, `delete_comment`, `delete_relation`, `delete_time` live in the
-`delete_` tier.
+The `delete_` tier adds only what layer 1 `delete_entity` cannot express:
+`delete_card` (card by id alone, type resolved, parent side effects reported) and
+`delete_relation` (by the two related card ids). Comments, times and other plain
+entities are deleted with `delete_entity`.
 
 ## Domain rules (enforced in code)
 

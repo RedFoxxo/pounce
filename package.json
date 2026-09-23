@@ -1,0 +1,34 @@
+{
+  "name": "pounce",
+  "version": "0.1.0",
+  "description": "MCP server for the Targetprocess REST API",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "pounce": "build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:live": "TP_LIVE=1 vitest run --config vitest.live.config.ts",
+    "snapshot": "npm run build && node build/catalog/snapshot-cli.js"
+  },
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.4",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  }
+}
