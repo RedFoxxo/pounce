@@ -117,17 +117,20 @@ entry records the resource name, plural path, `CanCreate` / `CanUpdate` /
 `CanDelete`, every field with `CanSet` / `IsRequired` / type, and every
 collection with `CanAdd` / `CanRemove`.
 
-Three confirmed quirks the loader must handle:
+Four confirmed quirks the loader must handle:
 
-- **The index is not valid-as-intended JSON.** `/api/v1/Index/meta` repeats the
+- **The index is not usable as plain JSON.** `/api/v1/Index/meta` repeats the
   key `"ResourceMetadataDescription"` once per resource, so `JSON.parse` keeps
   only the last one. Scan the raw text for every occurrence instead.
 - **The index is incomplete.** History resources and `GeneralConversions` answer
-  `/meta` but are not listed. For every resource `X`, also probe `XHistories/meta`
-  and `XSimpleHistories/meta`, and always probe `GeneralConversions/meta`.
+  `/meta` but are not listed (56 on our instance). For every resource `X`, also
+  probe `XHistories/meta` and `XSimpleHistories/meta`, and always probe
+  `GeneralConversions/meta`.
 - **An index entry can be broken.** `SickLeave` is listed on our instance but its
   `/meta` and its collection both return 404. Record such entries as
   unavailable and keep loading; never fail startup over one resource.
+- **Some `/meta` is XML only.** `Context/meta` answers XML even with
+  `format=json` and `Accept: application/json` (**live**); the loader parses both.
 
 Generic tools validate every call against the catalog **before** sending it:
 unknown resource, unsupported operation, unknown field, or non-settable field is
@@ -291,8 +294,9 @@ card before implementing it.
 ### Resources
 
 Our instance exposes **89 resources** in `/api/v1/Index/meta` (78 full CRUD, 3
-update + delete, 2 update only, 5 read only, 1 broken), plus **28 unlisted
-resources** found by probing, and **1054 collections**, 543 of them
+update + delete, 2 update only, 5 read only, 1 broken), plus **56 unlisted
+resources** found by probing every `{X}Histories`/`{X}SimpleHistories` (the
+research doc lists the 28 found by hand; `snapshot.json` is authoritative), and **1054 collections**, 543 of them
 addable/removable. The full per-resource table is in
 `docs/research/catalog-mamami-2026-09-23.md`; it is the baseline for
 `snapshot.json`.

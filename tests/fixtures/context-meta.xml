@@ -1,0 +1,35 @@
+<?xml-stylesheet type='text/xsl' xmlns='http://www.w3.org/1999/xhtml' href='../xslt/ResourceMetadataDescription.xsl'?>
+<ResourceMetadataDescription Name="Context" CanCreate="true" CanUpdate="true" CanDelete="true" IndexUri="https://mamami.tpondemand.com/api/v1/index/meta" Uri="https://mamami.tpondemand.com/api/v1/Context" Description="Context contains information about logged User, Culture, selected Projects and Processes.">
+  <ResourceMetadataHierarchyDescription>
+    <ResourceMetadataBaseResourceDescription>
+      <ResourceMetadataBaseResourceItemDescription />
+    </ResourceMetadataBaseResourceDescription>
+    <ResourceMetadataDerivedResourceDescription>
+      <ResourceMetadataDerivedResourceItemDescription />
+    </ResourceMetadataDerivedResourceDescription>
+  </ResourceMetadataHierarchyDescription>
+  <ResourceMetadataPropertiesDescription>
+    <ResourceMetadataPropertiesResourceValuesDescription>
+      <ResourceFieldMetadataDescription Name="Id" CanSet="true" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Int32" IsTypeComplex="false" IsSynthetic="false" Description="Entity ID" Uri="https://mamami.tpondemand.com/api/v1/Int32/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="Acid" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="String" IsTypeComplex="false" IsSynthetic="false" Description="Application context ID. Unique value for a set of projects" Uri="https://mamami.tpondemand.com/api/v1/String/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="Edition" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="String" IsTypeComplex="false" IsSynthetic="false" Description="Target Process edition" Uri="https://mamami.tpondemand.com/api/v1/String/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="Version" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="String" IsTypeComplex="false" IsSynthetic="false" Description="Target Process version" Uri="https://mamami.tpondemand.com/api/v1/String/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="IsFull" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Boolean" IsTypeComplex="false" IsSynthetic="false" Description="Flag to identify if context is full" Uri="https://mamami.tpondemand.com/api/v1/Boolean/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="AnyProject" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Boolean" IsTypeComplex="false" IsSynthetic="false" Description="Flag to identify if any project is selected" Uri="https://mamami.tpondemand.com/api/v1/Boolean/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="AnyTeam" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Boolean" IsTypeComplex="false" IsSynthetic="false" Description="Flag to identify if any team is selected" Uri="https://mamami.tpondemand.com/api/v1/Boolean/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="IsNoTeamIncluded" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Boolean" IsTypeComplex="false" IsSynthetic="false" Description="Flag to identify if no team is included" Uri="https://mamami.tpondemand.com/api/v1/Boolean/meta" IsBoundToParent="false" />
+    </ResourceMetadataPropertiesResourceValuesDescription>
+    <ResourceMetadataPropertiesResourceReferencesDescription>
+      <ResourceFieldMetadataDescription Name="LoggedUser" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="User" IsTypeComplex="true" IsSynthetic="false" Description="Logged user" Uri="https://mamami.tpondemand.com/api/v1/Users/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="Culture" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Culture" IsTypeComplex="true" IsSynthetic="false" Description="Current culture in application" Uri="https://mamami.tpondemand.com/api/v1/Cultures/meta" IsBoundToParent="false" />
+      <ResourceFieldMetadataDescription Name="AppContext" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="AppContext" IsTypeComplex="true" IsSynthetic="false" Description="" Uri="https://mamami.tpondemand.com/api/v1/AppContexts/meta" IsBoundToParent="false" />
+    </ResourceMetadataPropertiesResourceReferencesDescription>
+    <ResourceMetadataPropertiesResourceCollectionsDescription>
+      <ResourceCollecitonFieldMetadataDescription Name="SelectedProjects" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="ProjectInfo" IsTypeComplex="true" IsSynthetic="false" Description="Collection of selected projects in the context" Uri="https://mamami.tpondemand.com/api/v1/ProjectInfos/meta" CanAdd="false" CanRemove="false" IsBoundToParent="false" />
+      <ResourceCollecitonFieldMetadataDescription Name="SelectedTeams" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="TeamInfo" IsTypeComplex="true" IsSynthetic="false" Description="Collection of selected teams in the context" Uri="https://mamami.tpondemand.com/api/v1/TeamInfos/meta" CanAdd="false" CanRemove="false" IsBoundToParent="false" />
+      <ResourceCollecitonFieldMetadataDescription Name="Processes" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="ProcessInfo" IsTypeComplex="true" IsSynthetic="false" Description="Collection of selected processes in the context" Uri="https://mamami.tpondemand.com/api/v1/ProcessInfos/meta" CanAdd="false" CanRemove="false" IsBoundToParent="false" />
+      <ResourceCollecitonFieldMetadataDescription Name="GlobalTerms" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="Term" IsTypeComplex="true" IsSynthetic="false" Description="Collection of global terms in context" Uri="https://mamami.tpondemand.com/api/v1/Terms/meta" CanAdd="false" CanRemove="false" IsBoundToParent="false" />
+      <ResourceCollecitonFieldMetadataDescription Name="CustomFields" CanSet="false" CanGet="true" IsDeprecated="false" IsRequired="false" Type="CustomFieldInfo" IsTypeComplex="true" IsSynthetic="false" Description="" Uri="https://mamami.tpondemand.com/api/v1/CustomFieldInfos/meta" CanAdd="false" CanRemove="false" IsBoundToParent="false" />
+    </ResourceMetadataPropertiesResourceCollectionsDescription>
+  </ResourceMetadataPropertiesDescription>
+</ResourceMetadataDescription>
