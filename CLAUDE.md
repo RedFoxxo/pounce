@@ -12,7 +12,11 @@ Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
 registering one tool per endpoint.
 
-Status: nothing is implemented yet. Work through "Implementation plan" in order.
+Status: steps 1–8 and 10 of the implementation plan are done. Step 9 has
+passed against the stateful fake (`tests/tools/acceptance.test.ts`); the live
+run (`tests/live/acceptance.test.ts`) still needs a test story named by the
+user. Until it passes, write paths are verified against docs and the fake
+only, and the old fork stays.
 
 ## Why a rewrite — lessons from the old server
 
