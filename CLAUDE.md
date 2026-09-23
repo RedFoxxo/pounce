@@ -108,7 +108,9 @@ tests/                 contract tests (tools/), helpers (fetch stub, MCP harness
   pass `innerTake`. A hard total cap (e.g. 5000) is reported as
   `truncated: true`, never silently.
 - JSON in and out (`format=json`). v1 dates arrive as `/Date(ms+offset)/` —
-  convert to ISO 8601 in `format/`. v2 accepts `isoDate`, uses camelCase, and
+  convert to ISO 8601 in `format/`, **keeping the offset** (`…+02:00`): release,
+  iteration and time dates are stored as local midnight (**live**), and a UTC
+  rendering would show the previous day. v2 accepts `isoDate`, uses camelCase, and
   **omits null fields** — absence means null.
 - On writes, shape the response with `resultFormat=json` and `resultInclude`, so
   the read-back needs no extra request when the response is enough.
@@ -261,7 +263,9 @@ takes base64 content only; pounce never reads local files for upload.
    posting.
 6. **Resolve names; never guess.** Users, roles, teams, states, projects and
    custom field options accept names. Zero matches → error with suggestions.
-   Several matches → error listing all candidates with ids.
+   Several matches → error listing all candidates with ids. An exact name wins
+   over partial matches; an exact hit on an inactive person or team is refused
+   for new assignments but accepted for reads and removals.
 7. **Verify writes.** Every workflow write reads the entity back and reports any
    requested value that did not persist.
 8. **Writes to one card are sequential.** TP recomputes derived fields on every
@@ -412,8 +416,9 @@ but `GET /api/deletedItems/v1/projects` returns 404 on our instance. Prefer
 
 Done: scaffold, HTTP layer and catalog, layer 1 tools with admin gating,
 resolvers, layer 2 read/write/delete tools, v2/history/storage/conversions/
-deleted items/attachment upload, README and opencode setup. Two review rounds
-over the write paths; their findings are fixed with regression tests.
+deleted items/attachment upload, README and opencode setup. Independent reviews
+of the write paths (twice), the read paths and the infrastructure; their
+confirmed findings are fixed with regression tests.
 
 Remaining:
 
