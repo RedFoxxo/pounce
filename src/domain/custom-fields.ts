@@ -73,15 +73,31 @@ export async function prepareCustomFields(
   return { ok: true, value: out }
 }
 
+function sameCustomValue(want: unknown, got: unknown): boolean {
+  if (want === null || want === undefined) return got === null || got === undefined || got === ''
+  if (isRecord(want) && typeof want.Url === 'string') {
+    const gotUrl = isRecord(got) ? got.Url : got
+    return gotUrl === want.Url
+  }
+  if (isRecord(want) && typeof want.Id === 'number') return isRecord(got) && got.Id === want.Id
+  if (typeof want === 'string' && /^\d{4}-\d{2}-\d{2}/.test(want) && typeof got === 'string') {
+    const a = Date.parse(want)
+    const b = Date.parse(got)
+    if (!Number.isNaN(a) && !Number.isNaN(b)) return Math.abs(a - b) < 24 * 3600 * 1000
+  }
+  if (typeof want === 'string' && typeof got === 'string' && want.includes(',')) {
+    const norm = (s: string) => s.split(',').map((x) => x.trim()).sort().join(',')
+    return norm(want) === norm(got)
+  }
+  return JSON.stringify(got) === JSON.stringify(want)
+}
+
 /** Compares requested custom field values with a read-back `CustomFields` array. */
 export function unpersistedCustomFields(requested: CustomFieldValue[], readBack: unknown): string[] {
   const list = Array.isArray(readBack) ? readBack.filter(isRecord) : []
   return requested.flatMap((req) => {
-    const got = list.find((f) => f.Name === req.Name)?.Value ?? null
-    const same =
-      JSON.stringify(got) === JSON.stringify(req.Value) ||
-      (isRecord(got) && isRecord(req.Value) && got.Url === req.Value.Url) ||
-      (typeof got === 'string' && typeof req.Value === 'string' && got.split(',').map((s) => s.trim()).sort().join(',') === req.Value.split(',').sort().join(','))
-    return same ? [] : [`${req.Name}: requested ${JSON.stringify(req.Value)}, got ${JSON.stringify(got)}`]
+    const field = list.find((f) => f.Name === req.Name)
+    if (!field) return [`${req.Name}: not present on the card after writing`]
+    return sameCustomValue(req.Value, field.Value) ? [] : [`${req.Name}: requested ${JSON.stringify(req.Value)}, got ${JSON.stringify(field.Value ?? null)}`]
   })
 }

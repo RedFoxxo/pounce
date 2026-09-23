@@ -7,12 +7,12 @@ import { applyRoleEfforts, roleEffortRows, type EffortRequest } from '../../doma
 import { parentChange, parentSnapshot, snapshotAgain, snapshotOf } from '../../domain/parent.js'
 import { htmlToText, textToHtml } from '../../format/html.js'
 import { items, num, ref, tags as parseTags } from '../../format/shape.js'
-import type { Err } from '../../http/result.js'
+import type { Err, Result } from '../../http/result.js'
 import { cardInfo } from '../../resolve/card.js'
 import { fullName, type TpRole, type TpUser } from '../../resolve/directory.js'
 import { match, type Resolved } from '../../resolve/match.js'
 import type { ToolContext } from '../context.js'
-import { prepareBody } from '../generic/validate.js'
+import { prepareBody, unpersisted } from '../generic/validate.js'
 import { isAdminResource } from '../generic/policy.js'
 import { failure, invalid, success } from '../respond.js'
 import { id } from '../schema.js'
@@ -34,9 +34,13 @@ async function load(ctx: ToolContext, cardId: number): Promise<Loaded> {
   return { ok: true, card: r.value }
 }
 
-async function reload(ctx: ToolContext, card: CardRead): Promise<Raw | undefined> {
-  const r = await readCardAs(ctx, card.info)
-  return r.ok ? r.data : undefined
+function reload(ctx: ToolContext, card: CardRead): Promise<Result<Raw>> {
+  return readCardAs(ctx, card.info)
+}
+
+/** The write was sent but could not be read back: say so instead of guessing a verdict. */
+function unverified(r: Err): { warning: string } {
+  return { warning: `The write was sent but the card could not be read back to verify it (${r.message})` }
 }
 
 function resolvePerson(ctx: ToolContext, input: string | number): Promise<Resolved<TpUser>> {
@@ -88,16 +92,25 @@ export const writeSetState = defineTool({
         if (!r.ok) return failure(`Could not set ${team.value.Name} state of ${info.entityType} ${info.id} to ${target.value.Name}`, r)
       }
       const after = await reload(ctx, card)
-      const afterTeam = items(after?.AssignedTeams).find((t) => num(t.Id) === taId)
-      const got = ref(afterTeam?.EntityState)
       const parentAfter = await snapshotAgain(ctx, parentBefore)
+      if (!after.ok) {
+        return success({
+          card: cardLabel(card),
+          team: { id: team.value.Id, name: team.value.Name },
+          teamState: { before: before?.name, requested: target.value.Name },
+          parent: parentChange(parentBefore, parentAfter),
+          ...unverified(after),
+        })
+      }
+      const afterTeam = items(after.data.AssignedTeams).find((t) => num(t.Id) === taId)
+      const got = ref(afterTeam?.EntityState)
       return success({
         card: cardLabel(card),
         team: { id: team.value.Id, name: team.value.Name },
         teamState: { before: before?.name, requested: target.value.Name, after: got?.name, changed: before?.id !== got?.id },
-        cardState: ref(after?.EntityState)?.name,
+        cardState: ref(after.data.EntityState)?.name,
         parent: parentChange(parentBefore, parentAfter),
-        ...(got?.id !== target.value.Id ? { notPersisted: [`team state: requested ${target.value.Name}, got ${got?.name ?? 'unknown'}`] } : {}),
+        ...(got?.id !== target.value.Id ? { notPersisted: [`team state: requested ${target.value.Name}, got ${got?.name ?? 'no team assignment'}`] } : {}),
       })
     }
 
@@ -110,14 +123,17 @@ export const writeSetState = defineTool({
     const r = await ctx.v1.update(info.resource.path, info.id, { EntityState: { Id: target.value.Id } })
     if (!r.ok) return failure(`Could not move ${info.entityType} ${info.id} to ${target.value.Name}`, r)
     const after = await reload(ctx, card)
-    const got = ref(after?.EntityState)
     const parentAfter = await snapshotAgain(ctx, parentBefore)
+    if (!after.ok) {
+      return success({ card: cardLabel(card), state: { before: before?.name, requested: target.value.Name }, parent: parentChange(parentBefore, parentAfter), ...unverified(after) })
+    }
+    const got = ref(after.data.EntityState)
     return success({
       card: cardLabel(card),
       state: { before: before?.name, requested: target.value.Name, after: got?.name, changed: before?.id !== got?.id },
-      teamStates: items(after?.AssignedTeams).map((t) => ({ team: ref(t.Team)?.name, state: ref(t.EntityState)?.name })),
+      teamStates: items(after.data.AssignedTeams).map((t) => ({ team: ref(t.Team)?.name, state: ref(t.EntityState)?.name })),
       parent: parentChange(parentBefore, parentAfter),
-      ...(got?.id !== target.value.Id ? { notPersisted: [`state: requested ${target.value.Name}, got ${got?.name ?? 'unknown'}`] } : {}),
+      ...(got?.id !== target.value.Id ? { notPersisted: [`state: requested ${target.value.Name}, got ${got?.name ?? 'no state'}`] } : {}),
     })
   },
 })
@@ -141,7 +157,14 @@ export const writeAssign = defineTool({
     const current = await listAssignments(ctx, args.id)
     if (!current.ok) return failure(`Could not read assignments of ${args.id}`, current)
 
+    // Add first, so a failure never leaves the role empty.
     const done: unknown[] = []
+    const already = current.data.some((a) => a.user.id === user.value.Id && a.role.id === r.value.Id)
+    if (!already) {
+      const add = await addAssignment(ctx, args.id, user.value.Id, r.value.Id)
+      if (!add.ok) return failure(`Could not assign ${fullName(user.value)} as ${r.value.Name} on ${args.id}; nobody was removed`, add)
+      done.push({ assigned: `${fullName(user.value)} as ${r.value.Name}` })
+    }
     const removed: AssignmentRow[] = []
     if (args.exclusive) {
       for (const a of current.data.filter((a) => a.role.id === r.value.Id && a.user.id !== user.value.Id)) {
@@ -151,21 +174,24 @@ export const writeAssign = defineTool({
         done.push({ removed: describeAssignment(a) })
       }
     }
-    const already = current.data.some((a) => a.user.id === user.value.Id && a.role.id === r.value.Id)
-    if (!already) {
-      const add = await addAssignment(ctx, args.id, user.value.Id, r.value.Id)
-      if (!add.ok) return partial(`Could not assign ${fullName(user.value)} as ${r.value.Name} on ${args.id}`, add, done)
-    }
     const after = await listAssignments(ctx, args.id)
     const assignments = after.ok ? after.data.map(describeAssignment) : undefined
     const present = after.ok && after.data.some((a) => a.user.id === user.value.Id && a.role.id === r.value.Id)
+    const leftover = after.ok ? removed.filter((x) => after.data.some((a) => a.id === x.id)) : []
     return success({
       card: { id: args.id, type: info.value.entityType, name: info.value.name },
       assigned: { user: `${fullName(user.value)} (${user.value.Id})`, role: r.value.Name },
       alreadyAssigned: already,
       removed: removed.map(describeAssignment),
       assignments,
-      ...(after.ok && !present ? { notPersisted: ['the assignment is not on the card after writing'] } : {}),
+      ...(after.ok && (!present || leftover.length)
+        ? {
+            notPersisted: [
+              ...(present ? [] : ['the assignment is not on the card after writing']),
+              ...leftover.map((x) => `${x.user.name} as ${x.role.name} is still on the card after removing`),
+            ],
+          }
+        : {}),
       ...(!after.ok ? { warning: `Could not read assignments back: ${after.message}` } : {}),
     })
   },
@@ -201,6 +227,7 @@ export const writeUnassign = defineTool({
       removed: describeAssignment(target),
       assignments: after.ok ? after.data.map(describeAssignment) : undefined,
       ...(stillThere ? { notPersisted: ['the assignment is still on the card'] } : {}),
+      ...(!after.ok ? { warning: `Could not read assignments back: ${after.message}` } : {}),
     })
   },
 })
@@ -243,16 +270,19 @@ export const writeSetRoleEffort = defineTool({
     const outcome = await applyRoleEfforts(ctx, card.info.id, roleEffortRows(card.raw), requests.value)
     if (outcome.error) return partial(outcome.error.message, outcome.error.error, outcome.applied)
     const after = await reload(ctx, card)
-    const rows = after ? roleEffortRows(after) : []
+    const parentAfter = await snapshotAgain(ctx, parentBefore)
+    if (!after.ok) {
+      return success({ card: cardLabel(card), efforts: outcome.applied, parent: parentChange(parentBefore, parentAfter), ...unverified(after) })
+    }
+    const rows = roleEffortRows(after.data)
     const notPersisted = requests.value.flatMap((req) => {
       const got = rows.find((r) => r.role.id === req.roleId)?.effort
       return got === req.effort ? [] : [`${req.roleName}: requested ${req.effort}, got ${got ?? 'no row'}`]
     })
-    const parentAfter = await snapshotAgain(ctx, parentBefore)
     return success({
       card: cardLabel(card),
       efforts: outcome.applied,
-      total: { before: num(card.raw.Effort), after: num(after?.Effort) },
+      total: { before: num(card.raw.Effort), after: num(after.data.Effort) },
       parent: parentChange(parentBefore, parentAfter),
       ...(notPersisted.length ? { notPersisted } : {}),
     })
@@ -277,7 +307,8 @@ export const writeSetCustomFields = defineTool({
     const r = await ctx.v1.update(card.info.resource.path, card.info.id, { CustomFields: values.value })
     if (!r.ok) return failure(`Could not set custom fields on ${card.info.entityType} ${card.info.id}`, r)
     const after = await reload(ctx, card)
-    const notPersisted = unpersistedCustomFields(values.value, after?.CustomFields)
+    if (!after.ok) return success({ card: cardLabel(card), set: values.value, ...unverified(after) })
+    const notPersisted = unpersistedCustomFields(values.value, after.data.CustomFields)
     return success({ card: cardLabel(card), set: values.value, ...(notPersisted.length ? { notPersisted } : {}) })
   },
 })
@@ -321,7 +352,8 @@ export const writeTeam = defineTool({
       done.push({ removed: t.name })
     }
     const after = await reload(ctx, card)
-    const teamIds = items(after?.AssignedTeams).map((c) => ref(c.Team)?.id)
+    if (!after.ok) return success({ card: cardLabel(card), added: toAdd.map((t) => t.Name), removed: toRemove.map((t) => t.name), ...unverified(after) })
+    const teamIds = items(after.data.AssignedTeams).map((c) => ref(c.Team)?.id)
     const notPersisted = [
       ...toAdd.filter((t) => !teamIds.includes(t.Id)).map((t) => `${t.Name} is not on the card after adding`),
       ...toRemove.filter((t) => teamIds.includes(t.teamId)).map((t) => `${t.name} is still on the card after removing`),
@@ -330,7 +362,7 @@ export const writeTeam = defineTool({
       card: cardLabel(card),
       added: toAdd.map((t) => t.Name),
       removed: toRemove.map((t) => t.name),
-      teams: items(after?.AssignedTeams).map((c) => ({ team: ref(c.Team)?.name, state: ref(c.EntityState)?.name })),
+      teams: items(after.data.AssignedTeams).map((c) => ({ team: ref(c.Team)?.name, state: ref(c.EntityState)?.name })),
       ...(notPersisted.length ? { notPersisted } : {}),
     })
   },
@@ -339,6 +371,45 @@ export const writeTeam = defineTool({
 // ---------------------------------------------------------------- create
 
 const refOrNull = z.union([id, z.null()])
+const tag = z.string().trim().min(1).refine((t) => !t.includes(','), 'a tag cannot contain a comma (Targetprocess separates tags with commas)')
+
+/** Fields that have their own argument or tool, because a domain rule applies to them. */
+const RESERVED: Record<string, string> = {
+  Name: 'name',
+  Description: 'description',
+  Project: 'project (or parent, to inherit it)',
+  EntityState: 'state, or write_set_state',
+  Effort: 'write_set_role_effort: the card total is computed from role efforts',
+  RoleEfforts: 'roleEfforts, or write_set_role_effort',
+  Assignments: 'assignees, or write_assign',
+  AssignedTeams: 'teams, or write_team',
+  CustomFields: 'customFields, or write_set_custom_fields',
+  Tags: 'tags',
+  TagObjects: 'tags',
+  Release: 'release',
+  Iteration: 'iteration',
+  TeamIteration: 'teamIteration',
+  UserStory: 'parent',
+  Feature: 'parent',
+  Epic: 'parent',
+  PortfolioEpic: 'parent',
+  LinkedGeneral: 'parent',
+  TestPlans: 'parent',
+}
+
+function reservedFields(fields: Record<string, unknown>): string | undefined {
+  const hits = Object.keys(fields).flatMap((k) => {
+    const key = Object.keys(RESERVED).find((r) => r.toLowerCase() === k.toLowerCase())
+    return key ? [`${key} → use ${RESERVED[key]}`] : []
+  })
+  return hits.length ? `these fields have their own argument or tool:\n- ${hits.join('\n- ')}` : undefined
+}
+
+/** Today as YYYY-MM-DD in the server's local time zone. */
+function localDate(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
 
 export const writeCreateCard = defineTool({
   name: 'write_create_card',
@@ -358,7 +429,7 @@ export const writeCreateCard = defineTool({
     teams: z.array(nameOrId).optional().describe('Teams to assign; TP_DEFAULT_TEAM_ID applies when omitted'),
     assignees: z.array(z.object({ user: person, role })).optional(),
     roleEfforts: effortsInput.optional(),
-    tags: z.array(z.string().min(1)).optional(),
+    tags: z.array(tag).optional(),
     customFields: z.record(z.string(), z.unknown()).optional(),
     release: refOrNull.optional(),
     iteration: refOrNull.optional(),
@@ -420,7 +491,7 @@ export const writeCreateCard = defineTool({
       if (!team.ok) return unresolved(team)
       teamIds.push({ Id: team.value.Id, Name: team.value.Name })
     }
-    if (!args.teams && ctx.config.defaultTeamId !== undefined) teamIds.push({ Id: ctx.config.defaultTeamId })
+    if (!args.teams && ctx.config.defaultTeamId !== undefined && catalog.member(resource, 'AssignedTeams')) teamIds.push({ Id: ctx.config.defaultTeamId })
     if (teamIds.length) {
       if (!catalog.member(resource, 'AssignedTeams')) return invalid(`A ${resource.name} cannot have teams`)
       body.AssignedTeams = { Items: teamIds.map((t) => ({ Team: { Id: t.Id } })) }
@@ -456,10 +527,13 @@ export const writeCreateCard = defineTool({
     for (const [key, value] of [['Release', args.release], ['Iteration', args.iteration], ['TeamIteration', args.teamIteration]] as const) {
       if (value !== undefined) body[key] = value === null ? null : { Id: value }
     }
+    let extraFields: Record<string, unknown> = {}
     if (args.fields && Object.keys(args.fields).length) {
+      const reserved = reservedFields(args.fields)
+      if (reserved) return invalid(reserved)
       const extra = prepareBody(catalog, resource, args.fields, 'create')
       if (!extra.ok) return invalid(extra.message)
-      for (const key of Object.keys(extra.value)) if (key in body) return invalid(`${key} is set twice (in fields and as its own argument)`)
+      extraFields = extra.value
       Object.assign(body, extra.value)
     }
 
@@ -497,6 +571,7 @@ export const writeCreateCard = defineTool({
       if (!fresh.ok) return partial(`Created ${resource.name} ${newId} but could not read it to set role efforts`, fresh, done)
       const outcome = await applyRoleEfforts(ctx, newId, roleEffortRows(fresh.data), efforts)
       if (outcome.error) return partial(`Created ${resource.name} ${newId}; ${outcome.error.message}`, outcome.error.error, [...done, ...outcome.applied])
+      done.push(...outcome.applied.map((e) => ({ effort: e })))
     }
 
     // ---- read back and verify
@@ -524,6 +599,7 @@ export const writeCreateCard = defineTool({
     for (const t of teamIds) if (!teamIdsAfter.includes(t.Id)) notPersisted.push(`team ${t.Name ?? t.Id} is not on the card`)
     notPersisted.push(...unpersistedCustomFields(customFields, raw.CustomFields))
     if (args.description !== undefined && htmlToText(String(raw.Description ?? '')) !== htmlToText(String(body.Description))) notPersisted.push('description differs from what was sent')
+    notPersisted.push(...unpersisted(extraFields, raw))
 
     const parentAfter = await snapshotAgain(ctx, parentBefore)
     const shapedInfo = { ...info, project: ref(raw.Project) ? { id: ref(raw.Project)!.id, name: ref(raw.Project)!.name ?? '' } : info.project }
@@ -543,14 +619,14 @@ export const writeUpdateCard = defineTool({
   name: 'write_update_card',
   description:
     'Update a card: name, description, tags (tags replaces the whole list; addTags/removeTags edit it), release, iteration, team iteration ' +
-    '(null clears), parent, or other settable fields. Changes are read back; removed tags are reported. For state, people, effort, teams and ' +
-    'custom fields use the dedicated write_* tools.',
+    '(null clears), parent, or other settable fields. Changes are read back; removed tags are reported. For a test case, parent ADDS it to ' +
+    'that test plan (existing plans are kept). For state, people, effort, teams and custom fields use the dedicated write_* tools.',
   input: {
     id,
     name: z.string().min(1).optional(),
     description: z.string().optional(),
-    tags: z.array(z.string()).optional(),
-    addTags: z.array(z.string().min(1)).optional(),
+    tags: z.array(tag).optional(),
+    addTags: z.array(tag).optional(),
     removeTags: z.array(z.string().min(1)).optional(),
     release: refOrNull.optional(),
     iteration: refOrNull.optional(),
@@ -585,49 +661,59 @@ export const writeUpdateCard = defineTool({
         body[key] = value === null ? null : { Id: value }
       }
     }
+    let parentField: string | undefined
     if (args.parent !== undefined) {
       const p = await cardInfo(ctx, args.parent)
       if (!p.ok) return unresolved(p)
       const link = parentLink(card.info.resource, p.value)
       if (!link.ok) return invalid(link.message)
       Object.assign(body, link.body)
+      parentField = link.field
     }
+    let extraFields: Record<string, unknown> = {}
     if (args.fields && Object.keys(args.fields).length) {
+      const reserved = reservedFields(args.fields)
+      if (reserved) return invalid(`${reserved}\n(write_update is the escape hatch for an explicit override)`)
       const extra = prepareBody(catalog, card.info.resource, args.fields, 'update')
       if (!extra.ok) return invalid(extra.message)
-      for (const key of Object.keys(extra.value)) if (key in body) return invalid(`${key} is set twice (in fields and as its own argument)`)
-      if ('Effort' in extra.value) return invalid('the card Effort total is computed from role efforts; use write_set_role_effort (or write_update for an explicit override)')
+      extraFields = extra.value
       Object.assign(body, extra.value)
     }
     if (Object.keys(body).length === 0) return invalid('nothing to update')
 
     const r = await ctx.v1.update(card.info.resource.path, card.info.id, body)
     if (!r.ok) return failure(`Could not update ${card.info.entityType} ${card.info.id}`, r)
-    const after = await reload(ctx, card)
+    const reread = await reload(ctx, card)
+    if (!reread.ok) return success({ card: cardLabel(card), updated: Object.keys(body), ...(removedTags.length ? { removedTags } : {}), ...unverified(reread) })
+    const after = reread.data
     const notPersisted: string[] = []
-    if (after) {
-      if (body.Name !== undefined && after.Name !== body.Name) notPersisted.push(`name: got ${JSON.stringify(after.Name)}`)
-      if (body.Description !== undefined && htmlToText(String(after.Description ?? '')) !== htmlToText(String(body.Description))) notPersisted.push('description differs from what was sent')
-      if (body.Tags !== undefined) {
-        const got = (parseTags(after.Tags) ?? []).map((t) => t.toLowerCase()).sort().join(',')
-        const want = String(body.Tags).split(',').filter(Boolean).map((t) => t.toLowerCase()).sort().join(',')
-        if (got !== want) notPersisted.push(`tags: requested [${want}], got [${got}]`)
-      }
-      for (const key of ['Release', 'Iteration', 'TeamIteration']) {
-        if (key in body) {
-          const want = (body[key] as { Id: number } | null)?.Id ?? null
-          const got = ref(after[key])?.id ?? null
-          if (want !== got) notPersisted.push(`${key}: requested ${want}, got ${got}`)
-        }
+    if (body.Name !== undefined && after.Name !== body.Name) notPersisted.push(`name: got ${JSON.stringify(after.Name)}`)
+    if (body.Description !== undefined && htmlToText(String(after.Description ?? '')) !== htmlToText(String(body.Description))) notPersisted.push('description differs from what was sent')
+    if (body.Tags !== undefined) {
+      const got = (parseTags(after.Tags) ?? []).map((t) => t.toLowerCase()).sort().join(',')
+      const want = String(body.Tags).split(',').filter(Boolean).map((t) => t.toLowerCase()).sort().join(',')
+      if (got !== want) notPersisted.push(`tags: requested [${want}], got [${got}]`)
+    }
+    for (const key of ['Release', 'Iteration', 'TeamIteration']) {
+      if (key in body) {
+        const want = (body[key] as { Id: number } | null)?.Id ?? null
+        const got = ref(after[key])?.id ?? null
+        if (want !== got) notPersisted.push(`${key}: requested ${want}, got ${got}`)
       }
     }
+    if (parentField === 'TestPlans') {
+      const plans = await ctx.v1.get<Raw>(card.info.resource.path, card.info.id, { include: '[Id,TestPlans[Id]]', innerTake: 1000 })
+      if (plans.ok && !items(plans.data.TestPlans).some((p) => num(p.Id) === args.parent)) notPersisted.push(`not in test plan ${args.parent}`)
+    } else if (parentField && ref(after[parentField])?.id !== args.parent) {
+      notPersisted.push(`${parentField}: requested ${args.parent}, got ${ref(after[parentField])?.id ?? null}`)
+    }
+    notPersisted.push(...unpersisted(extraFields, after))
     return success({
       card: cardLabel(card),
       updated: Object.keys(body),
       ...(removedTags.length ? { removedTags } : {}),
-      now: after ? shapeCard(card.info, after) : undefined,
+      now: shapeCard(card.info, after),
       ...(notPersisted.length ? { notPersisted } : {}),
-      ...(!after ? { warning: 'Could not read the card back' } : {}),
     })
   },
 })
@@ -657,7 +743,7 @@ export const writeLogTime = defineTool({
   name: 'write_log_time',
   description:
     'Log time spent on a card for a person (default: you). The role defaults to the person\'s only role on the card; if they have none or ' +
-    'several, pass role. date is YYYY-MM-DD (default today).',
+    'several, pass role. date is YYYY-MM-DD (default: today in the server\'s time zone).',
   input: {
     id,
     spent: z.number().positive().max(1000),
@@ -698,7 +784,7 @@ export const writeLogTime = defineTool({
       User: { Id: user.value.Id },
       Role: { Id: roleId },
       Spent: args.spent,
-      Date: args.date ?? new Date().toISOString().slice(0, 10),
+      Date: args.date ?? localDate(),
     }
     if (args.remain !== undefined) body.Remain = args.remain
     if (args.description) body.Description = args.description
@@ -713,7 +799,7 @@ export const writeLogTime = defineTool({
       role: roleName,
       spent: num(r.data?.Spent),
       date: r.data?.Date,
-      cardTime: after ? { spent: num(after.TimeSpent), remaining: num(after.TimeRemain) } : undefined,
+      cardTime: after.ok ? { spent: num(after.data.TimeSpent), remaining: num(after.data.TimeRemain) } : undefined,
       ...(notPersisted.length ? { notPersisted } : {}),
     })
   },
@@ -762,18 +848,23 @@ export const writeFollow = defineTool({
     if (!user.ok) return unresolved(user)
     const existing = await ctx.v1.list<Raw>('GeneralFollowers', { where: `(General.Id eq ${args.id}) and (User.Id eq ${user.value.Id})`, include: '[Id]' })
     if (!existing.ok) return failure(`Could not read followers of ${args.id}`, existing)
-    const row = existing.data.items[0]
+    const rows = existing.data.items
     const who = `${fullName(user.value)} (${user.value.Id})`
-    if (args.unfollow) {
-      if (!row) return success({ card: args.id, user: who, following: false, changed: false })
-      const r = await ctx.v1.delete('GeneralFollowers', num(row.Id) as number)
-      if (!r.ok) return failure(`Could not unfollow ${args.id}`, r)
-      return success({ card: args.id, user: who, following: false, changed: true })
+    const want = !args.unfollow
+    if (want === rows.length > 0) return success({ card: args.id, user: who, following: want, changed: false })
+    if (want) {
+      const r = await ctx.v1.create<Raw>('GeneralFollowers', { General: { Id: args.id }, User: { Id: user.value.Id } })
+      if (!r.ok) return failure(`Could not follow ${args.id}`, r)
+    } else {
+      for (const row of rows) {
+        const r = await ctx.v1.delete('GeneralFollowers', num(row.Id) as number)
+        if (!r.ok) return failure(`Could not unfollow ${args.id}`, r)
+      }
     }
-    if (row) return success({ card: args.id, user: who, following: true, changed: false })
-    const r = await ctx.v1.create<Raw>('GeneralFollowers', { General: { Id: args.id }, User: { Id: user.value.Id } })
-    if (!r.ok) return failure(`Could not follow ${args.id}`, r)
-    return success({ card: args.id, user: who, following: true, changed: true })
+    const after = await ctx.v1.list<Raw>('GeneralFollowers', { where: `(General.Id eq ${args.id}) and (User.Id eq ${user.value.Id})`, include: '[Id]' })
+    if (!after.ok) return success({ card: args.id, user: who, following: want, changed: true, warning: `Could not read followers back (${after.message})` })
+    const following = after.data.items.length > 0
+    return success({ card: args.id, user: who, following, changed: true, ...(following !== want ? { notPersisted: [`following: requested ${want}, got ${following}`] } : {}) })
   },
 })
 
@@ -844,19 +935,24 @@ export const writeTestRun = defineTool({
     const plan = await cardInfo(ctx, args.testPlan)
     if (!plan.ok) return unresolved(plan)
     if (plan.value.entityType !== 'TestPlan') return invalid(`${args.testPlan} is a ${plan.value.entityType}, not a TestPlan`)
+    if (args.results?.length) {
+      const cases = await ctx.v1.list<Raw>(`TestPlans/${args.testPlan}/TestCases`, { include: '[Id]', limit: 20_000 })
+      if (!cases.ok) return failure(`Could not read the test cases of test plan ${args.testPlan}`, cases)
+      const inPlan = new Set(cases.data.items.map((c) => num(c.Id)))
+      const foreign = args.results.filter((r) => !inPlan.has(r.testCase)).map((r) => r.testCase)
+      if (foreign.length) return invalid(`test cases ${foreign.join(', ')} are not in test plan ${args.testPlan}; no run was started`)
+    }
     const body: Record<string, unknown> = { TestPlan: { Id: args.testPlan } }
     if (args.name) body.Name = args.name
     if (plan.value.project) body.Project = { Id: plan.value.project.id }
-    const run = await ctx.v1.create<Raw>('TestPlanRuns', body, { resultInclude: '[Id,Name,TestCaseRuns[Id,TestCase[Id,Name]]]' })
+    const run = await ctx.v1.create<Raw>('TestPlanRuns', body, { resultInclude: '[Id,Name]' })
     if (!run.ok) return failure(`Could not start a run of test plan ${args.testPlan}`, run)
     const runId = num(run.data?.Id) as number
     const done: unknown[] = [{ testPlanRun: runId }]
-    let caseRuns = items(run.data?.TestCaseRuns)
-    if (args.results?.length && caseRuns.length === 0) {
-      const list = await ctx.v1.list<Raw>('TestCaseRuns', { where: `(TestPlanRun.Id eq ${runId})`, include: '[Id,TestCase[Id,Name]]' })
-      if (!list.ok) return partial(`Started run ${runId} but could not read its test case runs`, list, done)
-      caseRuns = list.data.items
-    }
+    // Read the generated case runs fully paged: an inner collection in the response would stop at 25.
+    const list = await ctx.v1.list<Raw>('TestCaseRuns', { where: `(TestPlanRun.Id eq ${runId})`, include: '[Id,TestCase[Id,Name]]', limit: 20_000 })
+    if (!list.ok) return partial(`Started run ${runId} but could not read its test case runs`, list, done)
+    const caseRuns = list.data.items
     const recorded: unknown[] = []
     const missing: number[] = []
     for (const res of args.results ?? []) {

@@ -172,10 +172,11 @@ describe('write_attachment', () => {
     expect(r.json.notPersisted).toEqual(["a.bin is not among the card's attachments"])
   })
 
-  it('requires exactly one source per file', async () => {
+  it('takes base64 content only, never a local path', async () => {
     h = await harness()
-    const r = await h.call('write_attachment', { id: 42, files: [{ name: 'x' }] })
-    expect(r.isError).toBe(true)
+    expect((await h.call('write_attachment', { id: 42, files: [{ name: 'x' }] })).isError).toBe(true)
+    expect((await h.call('write_attachment', { id: 42, files: [{ name: 'x', path: '/home/me/.env' }] })).isError).toBe(true)
+    expect((await h.call('write_attachment', { id: 42, files: [{ name: 'x', contentBase64: 'not base64!' }] })).text).toMatch(/not valid base64/)
     expect(h.stub.calls).toHaveLength(0)
   })
 })

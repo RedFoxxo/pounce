@@ -88,7 +88,8 @@ export class HttpCore {
       })
     } catch (error) {
       const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
-      return err(0, `No response from Targetprocess (${this.redact(reason)})`, this.redact(reason), shown)
+      const unknown = spec.method === 'GET' ? '' : `; the ${spec.method} may or may not have been applied, so check before retrying`
+      return err(0, `No response from Targetprocess (${this.redact(reason)})${unknown}`, this.redact(reason), shown)
     }
 
     let text: string

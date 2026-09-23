@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../http/result.js'
 import { v1String, type V1Client, type V1Ref } from '../http/v1.js'
-import { match, type Resolved } from './match.js'
+import { match, matchActive, type Resolved } from './match.js'
 
 export interface TpUser {
   Id: number
@@ -173,13 +173,7 @@ export class Directory {
       keys: (u: TpUser) => [fullName(u), `${u.LastName ?? ''} ${u.FirstName ?? ''}`, u.Login, u.Email, u.FirstName, u.LastName],
       describe: (u: TpUser) => ({ login: u.Login, ...(isActiveUser(u) ? {} : { inactive: true }) }),
     }
-    const found = match(input, { ...spec, items: r.data.filter(isActiveUser) })
-    if (found.ok || found.reason !== 'none') return found
-    const inactive = match(input, { ...spec, items: r.data.filter((u) => !isActiveUser(u)) })
-    if (inactive.ok) {
-      return { ok: false, reason: 'none', message: `User ${fullName(inactive.value)} (${inactive.value.Id}) is inactive or deleted.` }
-    }
-    return found
+    return matchActive(input, { ...spec, items: r.data }, isActiveUser)
   }
 
   async me(): Promise<Resolved<TpUser>> {
@@ -197,11 +191,7 @@ export class Directory {
     const r = await this.teams()
     if (!r.ok) return { ok: false, reason: 'error', message: 'Could not load teams', error: r }
     const spec = { kind: 'team', id: (x: TpTeam) => x.Id, name: (x: TpTeam) => x.Name, keys: (x: TpTeam) => [x.Name] }
-    const found = match(input, { ...spec, items: r.data.filter((t) => t.IsActive !== false) })
-    if (found.ok || found.reason !== 'none') return found
-    const inactive = match(input, { ...spec, items: r.data.filter((t) => t.IsActive === false) })
-    if (inactive.ok) return { ok: false, reason: 'none', message: `Team ${inactive.value.Name} (${inactive.value.Id}) is inactive.` }
-    return found
+    return matchActive(input, { ...spec, items: r.data }, (t) => t.IsActive !== false)
   }
 
   async project(input: string | number): Promise<Resolved<TpProject>> {

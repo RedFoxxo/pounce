@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { FakeTp } from '../helpers/fake-tp.js'
+import { StubReply } from '../helpers/fetch-stub.js'
 import { harness, type Harness } from '../helpers/harness.js'
 
 let h: Harness
@@ -409,16 +410,124 @@ describe('testing', () => {
     expect(r.json.created[0].notPersisted).toBeUndefined()
   })
 
-  it('write_test_run records results against the generated case runs', async () => {
+  it('write_test_run records results against every generated case run, past the 25-item inner cap', async () => {
     const { tp } = world()
     tp.addCard({ Id: 17796, type: 'TestPlan', Name: 'Export' })
+    const caseIds = Array.from({ length: 30 }, (_, i) => i + 1)
     tp.stub
-      .post('/api/v1/TestPlanRuns', { Id: 900, Name: 'Export', TestCaseRuns: { Items: [{ Id: 901, TestCase: { Id: 1 } }, { Id: 902, TestCase: { Id: 2 } }] } })
-      .post('/api/v1/TestCaseRuns/901', { Id: 901, Status: 'Failed', Comment: 'broken' })
+      .get('/api/v1/TestPlans/17796/TestCases', { Items: caseIds.map((Id) => ({ Id })) })
+      .post('/api/v1/TestPlanRuns', { Id: 900, Name: 'Export' })
+      .get('/api/v1/TestCaseRuns', { Items: caseIds.map((c) => ({ Id: 900 + c, TestCase: { Id: c } })) })
+      .post('/api/v1/TestCaseRuns/930', { Id: 930, Status: 'Failed', Comment: 'broken' })
     h = await harness({ stub: tp.stub })
-    const r = await h.call('write_test_run', { testPlan: 17796, results: [{ testCase: 1, status: 'Failed', comment: 'broken' }, { testCase: 3, status: 'Passed' }] })
+    const r = await h.call('write_test_run', { testPlan: 17796, results: [{ testCase: 30, status: 'Failed', comment: 'broken' }] })
     expect(r.isError, r.text).toBe(false)
-    expect(h.stub.writes.map((c) => c.body)).toEqual([{ TestPlan: { Id: 17796 }, Project: { Id: 26080 } }, { Status: 'Failed', Comment: 'broken', Id: 901 }])
-    expect(r.json).toMatchObject({ testPlanRun: { id: 900 }, caseRuns: 2, recorded: [{ testCase: 1, status: 'Failed' }], notInRun: [3] })
+    expect(h.stub.writes.map((c) => c.body)).toEqual([{ TestPlan: { Id: 17796 }, Project: { Id: 26080 } }, { Status: 'Failed', Comment: 'broken', Id: 930 }])
+    expect(h.stub.find('GET', '/api/v1/TestCaseRuns')[0]!.query.get('where')).toBe('(TestPlanRun.Id eq 900)')
+    expect(r.json).toMatchObject({ testPlanRun: { id: 900 }, caseRuns: 30, recorded: [{ testCase: 30, status: 'Failed' }] })
+  })
+
+  it('write_test_run refuses test cases outside the plan before starting a run', async () => {
+    const { tp } = world()
+    tp.addCard({ Id: 17796, type: 'TestPlan', Name: 'Export' })
+    tp.stub.get('/api/v1/TestPlans/17796/TestCases', { Items: [{ Id: 1 }] })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_test_run', { testPlan: 17796, results: [{ testCase: 3, status: 'Passed' }] })
+    expect(r.text).toMatch(/test cases 3 are not in test plan 17796; no run was started/)
+    expect(h.stub.writes).toHaveLength(0)
+  })
+})
+
+describe('review regressions', () => {
+  it('a failed parent read is reported as unknown, never as a change', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    // The story can be read before the write, but not after it.
+    let storyReads = 0
+    tp.stub.first({
+      method: 'GET',
+      path: '/api/v1/UserStories/36216',
+      body: () => (++storyReads > 1 ? new StubReply(503, { Message: 'Service Unavailable' }) : tp.render(tp.cards.get(36216)!)),
+    })
+    const r = await h.call('write_set_state', { id: 36406, state: 'Coded' })
+    expect(r.isError, r.text).toBe(false)
+    expect(r.json.parent.state).toBeUndefined()
+    expect(r.json.parent.unknown).toMatch(/could not be read after the write .*Service Unavailable/)
+  })
+
+  it('a failed read-back gives a warning and no verdict', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    let taskReads = 0
+    tp.stub.first({
+      method: 'GET',
+      path: '/api/v1/Tasks/36406',
+      body: () => (++taskReads > 1 ? new StubReply(500, { Message: 'boom' }) : tp.render(tp.cards.get(36406)!)),
+    })
+    const r = await h.call('write_set_role_effort', { id: 36406, efforts: [{ role: 'Developer', effort: 2 }] })
+    expect(r.json.notPersisted).toBeUndefined()
+    expect(r.json.warning).toMatch(/could not be read back to verify it .*boom/)
+  })
+
+  it('write_create_card refuses rule-bound fields inside fields', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_create_card', { type: 'Task', name: 'T', parent: 36216, fields: { Effort: 5, assignments: [{ Id: 1 }] } })
+    expect(r.text).toContain('Effort → use write_set_role_effort')
+    expect(r.text).toContain('Assignments → use assignees, or write_assign')
+    expect(h.stub.writes).toHaveLength(0)
+  })
+
+  it('TP_DEFAULT_TEAM_ID does not block card types without teams', async () => {
+    const { tp } = world()
+    tp.addCard({ Id: 17796, type: 'TestPlan', Name: 'Export' })
+    h = await harness({ stub: tp.stub, config: { defaultTeamId: 447 } })
+    const r = await h.call('write_create_card', { type: 'TestCase', name: 'Case', parent: 17796 })
+    expect(r.isError, r.text).toBe(false)
+    expect(h.stub.writes[0]!.body).toEqual({ Name: 'Case', TestPlans: { Items: [{ Id: 17796 }] }, Project: { Id: 26080 } })
+  })
+
+  it('exclusive assign adds before it removes', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    await h.call('write_assign', { id: 36216, user: 'Giorgia Rossi', role: 'Developer', exclusive: true })
+    expect(writes(h)).toEqual(['POST /api/v1/Assignments', expect.stringMatching(/^DELETE \/api\/v1\/Assignments\/\d+$/)])
+  })
+
+  it('exclusive assign removes nobody when the add fails', async () => {
+    const { tp } = world()
+    tp.failNext = { method: 'POST', path: /^\/api\/v1\/Assignments$/, status: 403, message: 'Access denied' }
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_assign', { id: 36216, user: 'Giorgia Rossi', role: 'Developer', exclusive: true })
+    expect(r.text).toMatch(/nobody was removed/)
+    expect(h.stub.writes.filter((c) => c.method === 'DELETE')).toHaveLength(0)
+  })
+
+  it('tags cannot contain commas', async () => {
+    const { tp } = world()
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_update_card', { id: 36216, addTags: ['a,b'] })
+    expect(r.isError).toBe(true)
+    expect(h.stub.writes).toHaveLength(0)
+  })
+
+  it('write_follow reads the follow back', async () => {
+    const { tp } = world()
+    tp.stub
+      .get('/api/v1/GeneralFollowers', { Items: [] }, { times: 1 })
+      .post('/api/v1/GeneralFollowers', { Id: 5 })
+      .get('/api/v1/GeneralFollowers', { Items: [] })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_follow', { id: 36216 })
+    expect(r.json.notPersisted).toEqual(['following: requested true, got false'])
+  })
+
+  it('a write with no response says its outcome is unknown', async () => {
+    const { tp } = world()
+    tp.stub.first({ method: 'POST', path: '/api/v1/Tasks', networkError: 'The operation was aborted due to timeout' })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('write_create_card', { type: 'Task', name: 'T', parent: 36216 })
+    expect(r.isError).toBe(true)
+    expect(r.text).toMatch(/the POST may or may not have been applied, so check before retrying/)
   })
 })

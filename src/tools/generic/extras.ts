@@ -1,5 +1,3 @@
-import { readFile } from 'node:fs/promises'
-import { basename } from 'node:path'
 import { z } from 'zod'
 import { compact, num, person, ref } from '../../format/shape.js'
 import { cardInfo } from '../../resolve/card.js'
@@ -252,22 +250,12 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 export const writeAttachment = defineTool({
   name: 'write_attachment',
   description:
-    'Upload files to a card (UploadFile.ashx). Each file is given as base64 content with a name, or as a local file path readable by the ' +
-    'pounce server. Attachments are read back to confirm they arrived.',
+    'Upload files to a card (UploadFile.ashx). Each file is given as base64 content with a name; pounce never reads local files itself, ' +
+    'so the client decides what may be uploaded. Attachments are read back to confirm they arrived.',
   input: {
     id,
     files: z
-      .array(
-        z
-          .object({
-            name: z.string().min(1).optional(),
-            contentBase64: z.string().min(1).optional(),
-            path: z.string().min(1).optional(),
-            mimeType: z.string().optional(),
-          })
-          .refine((f) => Boolean(f.contentBase64) !== Boolean(f.path), 'give exactly one of contentBase64 or path')
-          .refine((f) => Boolean(f.path) || Boolean(f.name), 'a name is required with contentBase64'),
-      )
+      .array(z.object({ name: z.string().min(1), contentBase64: z.string().min(1), mimeType: z.string().optional() }))
       .min(1)
       .max(10),
   },
@@ -276,16 +264,11 @@ export const writeAttachment = defineTool({
     form.set('generalId', String(args.id))
     const names: string[] = []
     for (const f of args.files) {
-      let bytes: Uint8Array
-      try {
-        bytes = f.path ? await readFile(f.path) : Buffer.from(f.contentBase64 as string, 'base64')
-      } catch (error) {
-        return invalid(`cannot read ${f.path}: ${error instanceof Error ? error.message : String(error)}`)
-      }
-      if (bytes.byteLength > MAX_UPLOAD_BYTES) return invalid(`${f.name ?? f.path} is larger than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`)
-      const name = f.name ?? basename(f.path as string)
-      names.push(name)
-      form.append('file', new Blob([bytes], { type: f.mimeType ?? 'application/octet-stream' }), name)
+      if (!/^[A-Za-z0-9+/]+={0,2}$/.test(f.contentBase64.replace(/\s+/g, ''))) return invalid(`${f.name}: contentBase64 is not valid base64`)
+      const bytes = Buffer.from(f.contentBase64, 'base64')
+      if (bytes.byteLength > MAX_UPLOAD_BYTES) return invalid(`${f.name} is larger than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`)
+      names.push(f.name)
+      form.append('file', new Blob([bytes], { type: f.mimeType ?? 'application/octet-stream' }), f.name)
     }
     const r = await ctx.http.request<string>({ method: 'POST', path: '/UploadFile.ashx', form, expect: 'text' })
     if (!r.ok) return failure(`Could not upload to ${args.id}`, r)

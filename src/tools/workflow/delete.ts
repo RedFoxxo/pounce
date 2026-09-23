@@ -9,12 +9,16 @@ import { defineTool } from '../types.js'
 
 type Raw = Record<string, unknown>
 
+/** Counts (from read_card) that are child cards rather than comments, times or attachments. */
+const CHILD_COUNTS = ['tasks', 'bugs', 'userStories', 'features', 'epics', 'testCases']
+
 export const deleteCard = defineTool({
   name: 'delete_card',
   description:
-    'Delete a card by id alone (its type is resolved). Reports what was deleted, how many children it had (Targetprocess may delete them ' +
-    "with it), and the parent card's state and efforts before/after.",
-  input: { id },
+    'Delete a card by id alone (its type is resolved). A card with child cards (tasks, bugs, stories, features, epics, test cases) is only ' +
+    "deleted with withChildren: true, since Targetprocess may delete them with it. Reports what was deleted and the parent card's state and " +
+    'efforts before/after.',
+  input: { id, withChildren: z.boolean().optional().describe('Confirm deleting a card that has child cards') },
   handler: async (args, ctx) => {
     const card = await readCardRaw(ctx, args.id)
     if (!card.ok) return card.error ? failure(card.message, card.error) : invalid(card.message)
@@ -22,6 +26,12 @@ export const deleteCard = defineTool({
     const allowed = resolveWritable(await ctx.catalog(), info.resource.name, 'delete', 'delete')
     if (!allowed.ok) return invalid(allowed.message)
     const shaped = shapeCard(info, raw)
+    const children = Object.fromEntries(
+      Object.entries(shaped.counts ?? {}).filter(([k, n]) => CHILD_COUNTS.includes(k) && n > 0),
+    )
+    if (Object.keys(children).length && !args.withChildren) {
+      return invalid(`${info.entityType} ${info.id} has child cards (${Object.entries(children).map(([k, n]) => `${n} ${k}`).join(', ')}); pass withChildren: true to delete it anyway`)
+    }
     const parentBefore = await parentSnapshot(ctx, raw)
 
     const r = await ctx.v1.delete(info.resource.path, info.id)
@@ -30,7 +40,7 @@ export const deleteCard = defineTool({
     const parentAfter = await snapshotAgain(ctx, parentBefore)
     return success({
       deleted: { id: info.id, type: info.entityType, name: shaped.name ?? info.name, state: shaped.state?.name, project: shaped.project },
-      ...(shaped.counts && Object.values(shaped.counts).some((n) => n > 0) ? { hadChildren: shaped.counts } : {}),
+      ...(Object.keys(children).length ? { hadChildren: children } : {}),
       ...(parentBefore ? { parent: parentChange(parentBefore, parentAfter) } : {}),
       ...(gone.ok ? { notPersisted: ['the card can still be read after deleting it'] } : {}),
     })

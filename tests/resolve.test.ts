@@ -43,6 +43,20 @@ describe('people', () => {
     expect(r.ok || r.message).toBe('User Rocco Amico (2429) is inactive or deleted.')
   })
 
+  it('an exact name of an inactive person is refused, not swapped for a partial active match', async () => {
+    const stub = new FetchStub().get('/api/v1/Users', {
+      Items: [
+        { Id: 1, FirstName: 'John', LastName: 'Smith', Login: 'jsmith', IsActive: false },
+        { Id: 2, FirstName: 'John', LastName: 'Smithson', Login: 'jsmithson', IsActive: true },
+      ],
+    })
+    const { dir } = directory(stub)
+    const r = await dir.user('John Smith')
+    expect(r.ok || r.message).toBe('User John Smith (1) is inactive or deleted.')
+    const partial = await dir.user('smithson')
+    expect(partial.ok && partial.value.Id).toBe(2)
+  })
+
   it('suggests close names when nothing matches', async () => {
     const { dir } = directory()
     const r = await dir.user('Leszk Bielski')
@@ -145,5 +159,29 @@ describe('cardInfo', () => {
     const r = await cardInfo(h.ctx, 1)
     expect(r.ok || r.message).toBe('No card with id 1 (or no access to it).')
     await h.close()
+  })
+})
+
+describe('custom field verification', () => {
+  it('compares entity fields by id, URLs by URL, dates by day, lists as sets', async () => {
+    const { unpersistedCustomFields } = await import('../src/domain/custom-fields.js')
+    const back = [
+      { Name: 'Rel', Value: { Id: 2, Kind: 'Release' } },
+      { Name: 'Link', Value: { Url: 'https://x', Label: 'x' } },
+      { Name: 'Due', Value: '2026-09-22T22:00:00.000Z' },
+      { Name: 'Multi', Value: 'b, a' },
+    ]
+    expect(
+      unpersistedCustomFields(
+        [
+          { Name: 'Rel', Value: { Id: 1, Kind: 'Release' } },
+          { Name: 'Link', Value: { Url: 'https://x', Label: 'x' } },
+          { Name: 'Due', Value: '2026-09-23' },
+          { Name: 'Multi', Value: 'a,b' },
+          { Name: 'Gone', Value: 'x' },
+        ],
+        back,
+      ),
+    ).toEqual(['Rel: requested {"Id":1,"Kind":"Release"}, got {"Id":2,"Kind":"Release"}', 'Gone: not present on the card after writing'])
   })
 })

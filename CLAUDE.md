@@ -362,6 +362,18 @@ from the instance, never hardcoded.
 - **Attachment download**: blocked with PAT auth (above). Add it only if a Basic-auth
   or cookie option is introduced deliberately.
 
+Write shapes used by pounce that are inferred from the metadata (the resources
+allow create/update/delete) rather than shown in the docs; confirm each on a test
+card during the live acceptance run:
+
+- `POST /api/v1/RoleEfforts/{id}` `{Effort}` and `POST /api/v1/RoleEfforts`
+  `{Assignable, Role, Effort}` (role effort rows)
+- `POST /api/v1/TeamAssignments/{id}` `{EntityState}` and `DELETE /api/v1/TeamAssignments/{id}`
+- `POST /api/v1/GeneralFollowers` `{General, User}` and `DELETE /api/v1/GeneralFollowers/{id}`
+- `"Tags": ""` clearing every tag; `Time.Date` sent as `YYYY-MM-DD`
+- Whether deleting a user story also deletes its tasks (`delete_card` requires
+  `withChildren: true` either way)
+
 Unresolved: the docs also show `/api/deletedItems/v1/{projects|users}/{id}/restore`,
 but `GET /api/deletedItems/v1/projects` returns 404 on our instance. Prefer
 `/api/v1/undelete` and verify either route with an administrator before use.

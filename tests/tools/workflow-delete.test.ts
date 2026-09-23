@@ -21,6 +21,21 @@ describe('delete_card', () => {
     expect(r.json.notPersisted).toBeUndefined()
   })
 
+  it('refuses a card with child cards unless withChildren is passed', async () => {
+    const tp = new FakeTp()
+    tp.addCard({ Id: 36216, type: 'UserStory', Name: 'Story' })
+    tp.addCard({ Id: 36406, type: 'Task', Name: 'Task', parent: { member: 'UserStory', id: 36216 } })
+    const render = tp.render.bind(tp)
+    tp.render = (card) => ({ ...render(card), ...(card.Id === 36216 ? { 'Tasks-Count': 1, 'Comments-Count': 3 } : {}) })
+    h = await harness({ stub: tp.stub })
+    const r = await h.call('delete_card', { id: 36216 })
+    expect(r.text).toMatch(/has child cards \(1 tasks\); pass withChildren: true/)
+    expect(h.stub.writes).toHaveLength(0)
+    const ok = await h.call('delete_card', { id: 36216, withChildren: true })
+    expect(ok.isError, ok.text).toBe(false)
+    expect(ok.json.hadChildren).toEqual({ tasks: 1 })
+  })
+
   it('refuses administration resources', async () => {
     const tp = new FakeTp()
     tp.stub.first({ method: 'GET', path: '/api/v1/Generals/2', body: { Id: 2, Name: 'P', EntityType: { Id: 1, Name: 'Project' }, Project: null } })

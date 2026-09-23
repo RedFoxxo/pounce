@@ -109,3 +109,31 @@ function distance(a: string, b: string): number {
   }
   return row[b.length] as number
 }
+
+/**
+ * Like `match`, but for directories with inactive entries. An exact name (or
+ * id) is looked up across everyone first, so an exact hit on an inactive entry
+ * is reported as inactive instead of silently resolving to an active entry
+ * that merely contains the name. Partial matches consider active entries only.
+ */
+export function matchActive<T>(input: string | number, spec: MatchSpec<T>, isActive: (item: T) => boolean): Resolved<T> {
+  const raw = String(input).trim()
+  const q = norm(raw)
+  const exact = /^\d+$/.test(raw)
+    ? spec.items.filter((item) => spec.id(item) === Number(raw))
+    : spec.items.filter((item) => spec.keys(item).some((k) => k && norm(k) === q))
+  if (exact.length > 0) {
+    const active = exact.filter(isActive)
+    if (active.length === 1) return { ok: true, value: active[0] as T }
+    if (active.length > 1) return ambiguous(spec, raw, active)
+    const first = exact[0] as T
+    return { ok: false, reason: 'none', message: `${spec.kind.replace(/^./, (c) => c.toUpperCase())} ${spec.name(first)} (${spec.id(first)}) is inactive or deleted.` }
+  }
+  const found = match(raw, { ...spec, items: spec.items.filter(isActive) })
+  if (found.ok || found.reason !== 'none') return found
+  const inactive = match(raw, { ...spec, items: spec.items.filter((i) => !isActive(i)) })
+  if (inactive.ok) {
+    return { ok: false, reason: 'none', message: `${spec.kind.replace(/^./, (c) => c.toUpperCase())} ${spec.name(inactive.value)} (${spec.id(inactive.value)}) is inactive or deleted.` }
+  }
+  return found
+}
