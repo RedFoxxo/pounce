@@ -3,11 +3,7 @@
 An MCP server for [Targetprocess](https://www.ibm.com/products/targetprocess): lets AI
 assistants read and manage your cards through the Targetprocess REST API.
 
-> **Status:** implemented and tested against a stubbed Targetprocess, and every read
-> path has been checked against a live instance. The write paths are built from
-> the official API documentation but have **not yet been run against a live
-> instance**. Run the live acceptance test on a test story you pick
-> ([below](#live-tests)) before you rely on them.
+Version 0.1.0. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Goals
 
@@ -15,7 +11,7 @@ assistants read and manage your cards through the Targetprocess REST API.
   Generic tools are driven by your instance's own API metadata, so custom entity
   types and future Targetprocess versions are covered automatically.
 - **Tools that fit how teams work.** Workflow tools accept names instead of ids
-  ("move #36400 to Coded", "assign Leszek as Developer") and apply the team's
+  ("move #36400 to Coded", "assign Foxxo as Developer") and apply the team's
   rules: effort is booked per role, default assignees are cleared on creation,
   and side effects on parent cards are reported.
 - **Honest results.** Every list is fully paged, every error carries
@@ -85,12 +81,49 @@ opencode prefixes MCP tools with the server's config key, so the key must be
 `pounce_read_card`). Tools are registered without a prefix of their own, and
 every new tool falls under one of the four rules automatically.
 
+## Claude Code setup
+
+Register the server once for all your projects. `${TP_TOKEN}` is expanded from
+your environment when the server starts, so the token is not stored in the
+config file:
+
+```sh
+claude mcp add-json pounce --scope user '{
+  "type": "stdio",
+  "command": "node",
+  "args": ["/path/to/pounce/build/index.js"],
+  "env": {
+    "TP_BASE_URL": "https://yourcompany.tpondemand.com",
+    "TP_TOKEN": "${TP_TOKEN}"
+  }
+}'
+```
+
+Then add the four permission rules to `~/.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": ["mcp__pounce__read_*"],
+    "ask": ["mcp__pounce__write_*", "mcp__pounce__delete_*"],
+    "deny": ["mcp__pounce__admin_*"]
+  }
+}
+```
+
+Claude Code names MCP tools `mcp__<server>__<tool>`, so the server name must be
+`pounce` for these rules to match. Check the connection with `claude mcp get
+pounce` or `/mcp` inside a session.
+
+## Permission tiers
+
 `admin_*` tools write configuration (projects, teams, users, processes,
 workflows, ...) and need an administrator token. Keep them denied unless you mean
 to use them.
 
 Any other MCP client works the same way: start `node build/index.js` with the
-environment variables above.
+environment variables above, and map the four tool-name prefixes to its
+permission system.
 
 ## Tools
 
@@ -182,10 +215,3 @@ npm run test:live -- tests/live/acceptance.test.ts
 
 Optional: `TP_LIVE_BUG_ASSIGNEE` (defaults to the first developer) and
 `TP_LIVE_TEAM` (defaults to `Core Team`).
-
-## Branches
-
-| Branch | Purpose |
-|---|---|
-| `main` | Development. All work happens here. |
-| `stable` | Released, known-good state. Updated from `main` only when a version is ready. |

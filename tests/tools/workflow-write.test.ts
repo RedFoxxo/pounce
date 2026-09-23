@@ -8,12 +8,12 @@ afterEach(async () => {
   await h?.close()
 })
 
-// Roles: Developer 13, Product Owner 7, Designer 12. Users: Leszek 2286 (me), Giorgio 16, Giorgia 17.
+// Roles: Developer 13, Product Owner 7, Designer 12. Users: Foxxo 2286 (me), Giorgio 16, Giorgia 17.
 
 function world() {
   const tp = new FakeTp()
   tp.addCard({ Id: 36193, type: 'Feature', Name: 'Review 2025' })
-  const story = tp.addCard({ Id: 36216, type: 'UserStory', Name: 'Review and manage ODAs', EntityState: { Id: 683, Name: 'Estimated' }, parent: { member: 'Feature', id: 36193 } }, {
+  const story = tp.addCard({ Id: 36216, type: 'UserStory', Name: 'Review and manage orders', EntityState: { Id: 683, Name: 'Estimated' }, parent: { member: 'Feature', id: 36193 } }, {
     efforts: { 13: 20 },
     assign: [[2286, 13], [16, 7]],
     teams: [447],
@@ -141,7 +141,7 @@ describe('write_assign / write_unassign', () => {
     const { tp } = world()
     h = await harness({ stub: tp.stub })
     const r = await h.call('write_assign', { id: 36216, user: 'giorgia@example.com', role: 'Developer', exclusive: true })
-    expect(r.json.removed).toEqual([{ id: expect.any(Number), user: 'Leszek Bielski (2286)', role: 'Developer' }])
+    expect(r.json.removed).toEqual([{ id: expect.any(Number), user: 'Foxxo Vulpes (2286)', role: 'Developer' }])
     expect(tp.assignments.filter((a) => a.card === 36216).map((a) => [a.user, a.role])).toEqual([
       [16, 7],
       [17, 13],
@@ -161,16 +161,16 @@ describe('write_assign / write_unassign', () => {
     h = await harness({ stub: tp.stub })
     const r = await h.call('write_assign', { id: 36216, user: 'giorg', role: 'Developer' })
     expect(r.isError).toBe(true)
-    expect(r.text).toContain('Giorgio Marchetti (16)')
+    expect(r.text).toContain('Giorgio Verdi (16)')
     expect(h.stub.writes).toHaveLength(0)
   })
 
   it('unassign removes one exact assignment', async () => {
     const { tp } = world()
     h = await harness({ stub: tp.stub })
-    const r = await h.call('write_unassign', { id: 36216, user: 'Giorgio Marchetti' })
+    const r = await h.call('write_unassign', { id: 36216, user: 'Giorgio Verdi' })
     expect(r.isError, r.text).toBe(false)
-    expect(r.json.removed).toMatchObject({ user: 'Giorgio Marchetti (16)', role: 'Product Owner' })
+    expect(r.json.removed).toMatchObject({ user: 'Giorgio Verdi (16)', role: 'Product Owner' })
     expect(writes(h)).toEqual([expect.stringMatching(/^DELETE \/api\/v1\/Assignments\/\d+$/)])
   })
 
@@ -207,8 +207,8 @@ describe('write_create_card', () => {
       EntityState: { Id: 693 },
       AssignedTeams: { Items: [{ Team: { Id: 447 } }] },
     })
-    expect(r.json.removedDefaultAssignments).toEqual([{ id: expect.any(Number), user: 'Giorgio Marchetti (16)', role: 'Product Owner' }])
-    expect(r.json.card.assignments).toEqual([{ id: expect.any(Number), user: { id: 2286, name: 'Leszek Bielski', login: 'lbielski' }, role: { id: 13, name: 'Developer' } }])
+    expect(r.json.removedDefaultAssignments).toEqual([{ id: expect.any(Number), user: 'Giorgio Verdi (16)', role: 'Product Owner' }])
+    expect(r.json.card.assignments).toEqual([{ id: expect.any(Number), user: { id: 2286, name: 'Foxxo Vulpes', login: 'fvulpes' }, role: { id: 13, name: 'Developer' } }])
     expect(r.json.card.roleEfforts.find((e: { role: { id: number } }) => e.role.id === 13).effort).toBe(1)
     expect(r.json.parent).toMatchObject({ id: 36216, roleEfforts: [{ role: 'Developer', before: 20, after: 1 }] })
     expect(r.json.notPersisted).toBeUndefined()
@@ -278,7 +278,7 @@ describe('write_create_card', () => {
     h = await harness({ stub: tp.stub })
     const r = await h.call('write_create_card', { type: 'Task', name: 'T', parent: 36216, assignees: [{ user: 'me', role: 'Developer' }] })
     expect(r.isError).toBe(true)
-    expect(r.text).toMatch(/^Created Task \d+ but could not assign Leszek Bielski as Developer/)
+    expect(r.text).toMatch(/^Created Task \d+ but could not assign Foxxo Vulpes as Developer/)
     expect(r.text).toContain('"created":{"id"')
     expect(r.text).toContain('removedDefault')
   })
@@ -353,7 +353,7 @@ describe('comments, time, relations, follow', () => {
   it('write_log_time asks for a role when it is not obvious', async () => {
     const { tp } = world()
     h = await harness({ stub: tp.stub })
-    const r = await h.call('write_log_time', { id: 36406, spent: 1, user: 'Giorgio Marchetti' })
+    const r = await h.call('write_log_time', { id: 36406, spent: 1, user: 'Giorgio Verdi' })
     expect(r.text).toMatch(/has no role on Task 36406; pass role/)
     expect(h.stub.writes).toHaveLength(0)
   })
@@ -564,15 +564,15 @@ describe('review regressions (write, round 2)', () => {
     const { tp } = world()
     tp.assignments.push({ Id: 777, card: 36216, user: 2429, role: 13 })
     h = await harness({ stub: tp.stub })
-    const r = await h.call('write_unassign', { id: 36216, user: 'Rocco Amico' })
+    const r = await h.call('write_unassign', { id: 36216, user: 'Rocco Neri' })
     expect(r.isError, r.text).toBe(false)
-    expect(r.json.removed.user).toBe('Rocco Amico (2429)')
+    expect(r.json.removed.user).toBe('Rocco Neri (2429)')
   })
 
   it('an inactive person cannot be newly assigned', async () => {
     const { tp } = world()
     h = await harness({ stub: tp.stub })
-    const r = await h.call('write_assign', { id: 36216, user: 'Rocco Amico', role: 'Developer' })
+    const r = await h.call('write_assign', { id: 36216, user: 'Rocco Neri', role: 'Developer' })
     expect(r.text).toMatch(/inactive or deleted/)
   })
 })

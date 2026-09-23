@@ -12,10 +12,10 @@ afterEach(async () => {
 const task = {
   ResourceType: 'Task',
   Id: 36406,
-  Name: 'Add delivery date to ODA',
-  Description: '<div>Delivery date belongs on the ODA line&#44; not on PurchaseOrder.</div>',
+  Name: 'Add delivery date to orders',
+  Description: '<div>Delivery date belongs on the order line&#44; not on PurchaseOrder.</div>',
   CreateDate: '/Date(1789479082000+0200)/',
-  Tags: 'backend, oda',
+  Tags: 'backend, orders',
   Effort: 8.0,
   EffortCompleted: 0.0,
   EffortToDo: 8.0,
@@ -33,7 +33,7 @@ const task = {
       {
         ResourceType: 'Assignment',
         Id: 49582,
-        GeneralUser: { ResourceType: 'User', Id: 18, FirstName: 'Paolo', LastName: 'Turello', Login: 'pturello', FullName: 'Paolo Turello', Kind: 'User' },
+        GeneralUser: { ResourceType: 'User', Id: 18, FirstName: 'Paolo', LastName: 'Gialli', Login: 'pgialli', FullName: 'Paolo Gialli', Kind: 'User' },
         Role: { ResourceType: 'Role', Id: 13, Name: 'Developer' },
       },
     ],
@@ -51,7 +51,7 @@ const task = {
       },
     ],
   },
-  UserStory: { ResourceType: 'UserStory', Id: 36216, Name: 'Review and manage ODAs' },
+  UserStory: { ResourceType: 'UserStory', Id: 36216, Name: 'Review and manage orders' },
   CustomFields: [],
   'Comments-Count': 0,
   'Times-Count': 0,
@@ -60,7 +60,7 @@ const task = {
 const story = {
   ResourceType: 'UserStory',
   Id: 36216,
-  Name: 'Review and manage ODAs',
+  Name: 'Review and manage orders',
   EntityState: { ResourceType: 'EntityState', Id: 684, Name: 'Designable' },
   Feature: { ResourceType: 'Feature', Id: 36193, Name: 'Review 2025 - Improvements' },
 }
@@ -82,16 +82,16 @@ describe('read_card', () => {
       state: { id: 691, name: 'Open', initial: true },
       project: { id: 26080, name: 'SBP' },
       parents: [
-        { id: 36216, type: 'UserStory', name: 'Review and manage ODAs', state: 'Designable' },
+        { id: 36216, type: 'UserStory', name: 'Review and manage orders', state: 'Designable' },
         { id: 36193, type: 'Feature', state: 'In progress' },
       ],
       teams: [{ id: 21420, team: { id: 447, name: 'Core Team' }, state: { id: 691, name: 'Open' } }],
-      assignments: [{ id: 49582, user: { id: 18, name: 'Paolo Turello', login: 'pturello' }, role: { id: 13, name: 'Developer' } }],
+      assignments: [{ id: 49582, user: { id: 18, name: 'Paolo Gialli', login: 'pgialli' }, role: { id: 13, name: 'Developer' } }],
       roleEfforts: [{ id: 72324, role: { id: 13, name: 'Developer' }, effort: 8, completed: 0, toDo: 8 }],
       effort: { total: 8, toDo: 8 },
-      tags: ['backend', 'oda'],
+      tags: ['backend', 'orders'],
       created: '2026-09-15T15:31:22.000+02:00',
-      description: 'Delivery date belongs on the ODA line, not on PurchaseOrder.',
+      description: 'Delivery date belongs on the order line, not on PurchaseOrder.',
       counts: { comments: 0, times: 0 },
     })
     const include = h.stub.find('GET', '/api/v1/Tasks/36406')[0]!.query.get('include')!
@@ -138,7 +138,7 @@ describe('read_search / read_my_work', () => {
 
   it('builds the v1 filter from resolved names, escaping quotes', async () => {
     h = await harness({ stub: withReferenceData(new FetchStub().get('/api/v1/Assignables', found)) })
-    const r = await h.call('read_search', { text: "it's", project: 'SBP', assignee: 'Giorgio Marchetti', tag: 'ui' })
+    const r = await h.call('read_search', { text: "it's", project: 'SBP', assignee: 'Giorgio Verdi', tag: 'ui' })
     expect(r.isError, r.text).toBe(false)
     const where = h.stub.find('GET', '/api/v1/Assignables')[0]!.query.get('where')
     expect(where).toBe(
@@ -151,14 +151,14 @@ describe('read_search / read_my_work', () => {
     h = await harness({ stub: withReferenceData(new FetchStub()) })
     const r = await h.call('read_search', { assignee: 'giorg' })
     expect(r.isError).toBe(true)
-    expect(r.text).toContain('Giorgio Marchetti (16)')
+    expect(r.text).toContain('Giorgio Verdi (16)')
     expect(h.stub.find('GET', '/api/v1/Assignables')).toHaveLength(0)
   })
 
   it('read_my_work filters on the logged user', async () => {
     h = await harness({ stub: withReferenceData(new FetchStub().get('/api/v1/Tasks', found)) })
     const r = await h.call('read_my_work', { type: 'Task' })
-    expect(r.json.user).toEqual({ id: 2286, name: 'Leszek Bielski' })
+    expect(r.json.user).toEqual({ id: 2286, name: 'Foxxo Vulpes' })
     expect(h.stub.find('GET', '/api/v1/Tasks')[0]!.query.get('where')).toBe("(AssignedUser.Id eq 2286) and (EntityState.IsFinal eq 'false')")
   })
 })
@@ -241,14 +241,14 @@ describe('per-card reads', () => {
             ParentId: null,
             CreateDate: '/Date(1790162026000+0200)/',
             IsPrivate: false,
-            Owner: { Id: 16, FirstName: 'Giorgio', LastName: 'Marchetti', Login: 'g', FullName: 'Giorgio Marchetti' },
+            Owner: { Id: 16, FirstName: 'Giorgio', LastName: 'Verdi', Login: 'g', FullName: 'Giorgio Verdi' },
           },
         ],
       }),
     })
     const r = await h.call('read_comments', { id: 36507 })
     expect(h.stub.calls[0]!.query.get('where')).toBe('(General.Id eq 36507)')
-    expect(r.json.comments).toEqual([{ id: 33401, author: { id: 16, name: 'Giorgio Marchetti', login: 'g' }, date: '2026-09-23T13:13:46.000+02:00', text: 'Fatto!' }])
+    expect(r.json.comments).toEqual([{ id: 33401, author: { id: 16, name: 'Giorgio Verdi', login: 'g' }, date: '2026-09-23T13:13:46.000+02:00', text: 'Fatto!' }])
   })
 
   it('read_relations merges both directions', async () => {
@@ -333,7 +333,7 @@ describe('review regressions (read)', () => {
 
   it('reads accept inactive people (a colleague who left)', async () => {
     h = await harness({ stub: withReferenceData(new FetchStub().get('/api/v1/Times', { Items: [] })) })
-    const r = await h.call('read_times', { user: 'Rocco Amico' })
+    const r = await h.call('read_times', { user: 'Rocco Neri' })
     expect(r.isError, r.text).toBe(false)
     expect(h.stub.find('GET', '/api/v1/Times')[0]!.query.get('where')).toBe('(User.Id eq 2429)')
   })

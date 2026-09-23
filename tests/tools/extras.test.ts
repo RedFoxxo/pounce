@@ -52,7 +52,7 @@ describe('read_history', () => {
             Date: '/Date(1789125681640+0200)/',
             Effort: 0,
             EntityState: { Id: 681, Name: 'Open' },
-            Modifier: { Id: 2286, FirstName: 'Leszek', LastName: 'Bielski', Login: 'lbielski' },
+            Modifier: { Id: 2286, FirstName: 'Foxxo', LastName: 'Vulpes', Login: 'fvulpes' },
             Project: { Id: 26080, Name: 'SBP' },
             Release: null,
           },
@@ -61,7 +61,7 @@ describe('read_history', () => {
     h = await harness({ stub })
     const r = await h.call('read_history', { id: 36216 })
     expect(r.json.entries).toEqual([
-      { id: 230209, date: '2026-09-11T13:21:21.640+02:00', by: { id: 2286, name: 'Leszek Bielski', login: 'lbielski' }, state: 'Open', effort: 0, project: 'SBP' },
+      { id: 230209, date: '2026-09-11T13:21:21.640+02:00', by: { id: 2286, name: 'Foxxo Vulpes', login: 'fvulpes' }, state: 'Open', effort: 0, project: 'SBP' },
     ])
   })
 

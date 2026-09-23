@@ -14,7 +14,7 @@ function directory(stub = withReferenceData(new FetchStub())) {
 describe('people', () => {
   it('resolves by full name, login, email and id', async () => {
     const { dir } = directory()
-    for (const input of ['Leszek Bielski', 'lbielski', 'LESZEK@example.com', 'bielski leszek', '2286', 2286]) {
+    for (const input of ['Foxxo Vulpes', 'fvulpes', 'FOXXO@example.com', 'vulpes foxxo', '2286', 2286]) {
       const r = await dir.user(input)
       expect(r.ok && r.value.Id, String(input)).toBe(2286)
     }
@@ -22,7 +22,7 @@ describe('people', () => {
 
   it('accepts a unique partial match', async () => {
     const { dir } = directory()
-    const r = await dir.user('leszek')
+    const r = await dir.user('foxxo')
     expect(r.ok && r.value.Id).toBe(2286)
   })
 
@@ -33,14 +33,14 @@ describe('people', () => {
     if (r.ok) return
     expect(r.reason).toBe('ambiguous')
     expect(r.candidates?.map((c) => c.id).sort()).toEqual([16, 17])
-    expect(r.message).toContain('Giorgio Marchetti (16)')
+    expect(r.message).toContain('Giorgio Verdi (16)')
     expect(r.message).toContain('Giorgia Rossi (17)')
   })
 
   it('refuses inactive people with a clear message', async () => {
     const { dir } = directory()
-    const r = await dir.user('Rocco Amico')
-    expect(r.ok || r.message).toBe('User Rocco Amico (2429) is inactive or deleted.')
+    const r = await dir.user('Rocco Neri')
+    expect(r.ok || r.message).toBe('User Rocco Neri (2429) is inactive or deleted.')
   })
 
   it('an exact name of an inactive person is refused, not swapped for a partial active match', async () => {
@@ -59,9 +59,9 @@ describe('people', () => {
 
   it('suggests close names when nothing matches', async () => {
     const { dir } = directory()
-    const r = await dir.user('Leszk Bielski')
+    const r = await dir.user('Foxo Vulpes')
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.message).toMatch(/Did you mean: Leszek Bielski \(2286\)/)
+    if (!r.ok) expect(r.message).toMatch(/Did you mean: Foxxo Vulpes \(2286\)/)
   })
 
   it('pages the full user list', async () => {
@@ -75,7 +75,7 @@ describe('people', () => {
 
   it('caches reference data', async () => {
     const { dir, stub } = directory()
-    await dir.user('lbielski')
+    await dir.user('fvulpes')
     await dir.user('giorgio@example.com')
     expect(stub.find('GET', '/api/v1/Users')).toHaveLength(1)
   })

@@ -30,7 +30,7 @@ describe('acceptance: the #36410 batch', () => {
   })
 
   it('story: two Developers and a Product Owner', async () => {
-    for (const [user, role] of [['me', 'Developer'], ['Giorgia Rossi', 'Developer'], ['Giorgio Marchetti', 'Product Owner']]) {
+    for (const [user, role] of [['me', 'Developer'], ['Giorgia Rossi', 'Developer'], ['Giorgio Verdi', 'Product Owner']]) {
       const r = await h.call('write_assign', { id: story, user, role })
       expect(r.isError, r.text).toBe(false)
       expect(r.json.removed).toEqual([])
@@ -79,7 +79,7 @@ describe('acceptance: the #36410 batch', () => {
   it('bug assigned to one person, defaults removed', async () => {
     const r = await h.call('write_create_card', { type: 'Bug', parent: story, name: 'Acceptance bug', assignees: [{ user: 'Giorgia Rossi', role: 'Developer' }] })
     expect(r.isError, r.text).toBe(false)
-    expect(r.json.removedDefaultAssignments).toEqual([{ id: expect.any(Number), user: 'Giorgio Marchetti (16)', role: 'Product Owner' }])
+    expect(r.json.removedDefaultAssignments).toEqual([{ id: expect.any(Number), user: 'Giorgio Verdi (16)', role: 'Product Owner' }])
     expect(r.json.card.assignments.map((a: { user: { id: number } }) => a.user.id)).toEqual([17])
     expect(r.json.notPersisted).toBeUndefined()
   })

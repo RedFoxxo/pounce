@@ -75,7 +75,7 @@ export class FakeTp {
   roleEfforts: RoleEffort[] = []
   teams: TeamAssignment[] = []
   private nextId = 50_000
-  /** Default assignment Targetprocess adds on creation: Giorgio Marchetti (16) as Product Owner (7). */
+  /** Default assignment Targetprocess adds on creation: Giorgio Verdi (16) as Product Owner (7). */
   defaultAssignment: { user: number; role: number } | undefined = { user: 16, role: 7 }
   /** Rejects the next write matching this path with the given status. */
   failNext?: { method: string; path: RegExp; status: number; message: string }

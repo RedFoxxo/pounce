@@ -3,10 +3,10 @@ import type { FetchStub } from '../helpers/fetch-stub.js'
 
 export const users = [
   { ResourceType: 'User', Id: 1, FirstName: 'Administrator', LastName: 'Administrator', Email: 'admin@nonexistingemail.com', Login: 'admin', DeleteDate: null, IsActive: false, Kind: 'User' },
-  { ResourceType: 'User', Id: 2286, FirstName: 'Leszek', LastName: 'Bielski', Email: 'leszek@example.com', Login: 'lbielski', DeleteDate: null, IsActive: true, Kind: 'User' },
-  { ResourceType: 'User', Id: 16, FirstName: 'Giorgio', LastName: 'Marchetti', Email: 'giorgio@example.com', Login: 'giorgio@example.com', DeleteDate: null, IsActive: true, Kind: 'User' },
+  { ResourceType: 'User', Id: 2286, FirstName: 'Foxxo', LastName: 'Vulpes', Email: 'foxxo@example.com', Login: 'fvulpes', DeleteDate: null, IsActive: true, Kind: 'User' },
+  { ResourceType: 'User', Id: 16, FirstName: 'Giorgio', LastName: 'Verdi', Email: 'giorgio@example.com', Login: 'giorgio@example.com', DeleteDate: null, IsActive: true, Kind: 'User' },
   { ResourceType: 'User', Id: 17, FirstName: 'Giorgia', LastName: 'Rossi', Email: 'giorgia@example.com', Login: 'grossi', DeleteDate: null, IsActive: true, Kind: 'User' },
-  { ResourceType: 'User', Id: 2429, FirstName: 'Rocco', LastName: 'Amico', Email: 'rocco@example.com', Login: 'rocco@example.com', DeleteDate: null, IsActive: false, Kind: 'User' },
+  { ResourceType: 'User', Id: 2429, FirstName: 'Rocco', LastName: 'Neri', Email: 'rocco@example.com', Login: 'rocco@example.com', DeleteDate: null, IsActive: false, Kind: 'User' },
 ]
 
 export const roles = [
@@ -92,7 +92,7 @@ export const storyCustomFields = [
   cf(160, 'Release Instructions', 'RichText', null),
 ]
 
-export const loggedUser = { ResourceType: 'User', Id: 2286, FirstName: 'Leszek', LastName: 'Bielski', Login: 'lbielski', IsActive: true, Kind: 'User' }
+export const loggedUser = { ResourceType: 'User', Id: 2286, FirstName: 'Foxxo', LastName: 'Vulpes', Login: 'fvulpes', IsActive: true, Kind: 'User' }
 
 export function general(id: number, entityType: string, entityTypeId = 4, project = { Id: 26080, Name: 'SBP', processId: 13 }) {
   return {
