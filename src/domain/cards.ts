@@ -51,7 +51,8 @@ const CARD_INCLUDE: [member: string, expr: string][] = [
   ...PARENT_REFS.map((p): [string, string] => [p, `${p}[Id,Name]`]),
 ]
 
-const COUNTED = ['Tasks', 'Bugs', 'UserStories', 'Features', 'Epics', 'TestCases', 'Comments', 'Attachments', 'Times']
+/** Child collections counted on a card; only those the card's resource has are asked for (live-checked). */
+const COUNTED = ['Tasks', 'Bugs', 'UserStories', 'Features', 'Epics', 'TestCases', 'AcceptanceCriteria', 'Comments', 'Attachments', 'Times', 'TimeRecords']
 
 function has(catalog: Catalog, resource: CatalogResource, member: string): boolean {
   return catalog.member(resource, member) !== undefined

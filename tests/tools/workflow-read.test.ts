@@ -99,6 +99,10 @@ describe('read_card', () => {
     expect(include).toContain('RoleEfforts[')
     expect(include).not.toContain('Severity') // Task has no Severity
     expect(h.stub.find('GET', '/api/v1/Tasks/36406')[0]!.query.get('innerTake')).toBe('1000')
+    // Counts only collections the resource has: a Task has TimeRecords but no AcceptanceCriteria.
+    const append = h.stub.find('GET', '/api/v1/Tasks/36406')[0]!.query.get('append')!
+    expect(append).toContain('TimeRecords-Count')
+    expect(append).not.toContain('AcceptanceCriteria-Count')
   })
 
   it('includes empty assignments explicitly', async () => {
