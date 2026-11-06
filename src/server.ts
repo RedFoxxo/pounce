@@ -1,10 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { ToolContext } from './tools/context.js'
-import { allTools, type AnyToolDef } from './tools/index.js'
-import { tierOf } from './tools/types.js'
+import { toolsFor, type AnyToolDef } from './tools/index.js'
+import { TOOLSETS, tierOf } from './tools/types.js'
 import { VERSION } from './version.js'
 
-export function createServer(ctx: ToolContext, tools: AnyToolDef[] = allTools()): McpServer {
+export function createServer(ctx: ToolContext, tools: AnyToolDef[] = toolsFor(ctx.config.toolsets ?? TOOLSETS)): McpServer {
   const server = new McpServer({ name: 'pounce', version: VERSION })
   const seen = new Set<string>()
 

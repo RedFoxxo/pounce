@@ -49,4 +49,10 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...base, TP_DEFAULT_PROJECT_ID: '0' })).toThrow(/positive numeric id/)
     expect(() => loadConfig({ ...base, TP_DEFAULT_PROJECT_ID: '99999999999999999999' })).toThrow(/positive numeric id/)
   })
+
+  it('reads POUNCE_TOOLSETS in canonical order and rejects unknown names', () => {
+    expect(loadConfig({ ...base, POUNCE_TOOLSETS: ' Admin, cards ' }).toolsets).toEqual(['cards', 'admin'])
+    expect(loadConfig({ ...base, POUNCE_TOOLSETS: '' }).toolsets).toBeUndefined()
+    expect(() => loadConfig({ ...base, POUNCE_TOOLSETS: 'cards,layer1' })).toThrow(/unknown toolsets: layer1/)
+  })
 })

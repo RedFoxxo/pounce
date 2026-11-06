@@ -1,26 +1,25 @@
-import { extraAdminTools, extraDeleteTools, extraReadTools, extraWriteTools } from './generic/extras.js'
+import { extraAdminTools, extraCardTools, extraRawTools } from './generic/extras.js'
 import { genericReadTools } from './generic/read.js'
 import { adminTools, genericDeleteTools, genericWriteTools } from './generic/write.js'
-import type { ToolDef } from './types.js'
+import { TOOLSETS, type ToolDef, type Toolset } from './types.js'
 import { workflowReadTools } from './workflow/read.js'
 import { workflowWriteTools } from './workflow/write.js'
 import { workflowDeleteTools } from './workflow/delete.js'
 
 export type AnyToolDef = ToolDef<any>
 
-/** Every tool pounce registers, in registration order. */
+const GROUPS: Record<Toolset, AnyToolDef[]> = {
+  cards: [...workflowReadTools, ...workflowWriteTools, ...workflowDeleteTools, ...extraCardTools],
+  raw: [...genericReadTools, ...genericWriteTools, ...genericDeleteTools, ...extraRawTools],
+  admin: [...adminTools, ...extraAdminTools],
+}
+
+/** The tools of the given toolsets, in registration order. */
+export function toolsFor(toolsets: readonly Toolset[]): AnyToolDef[] {
+  return TOOLSETS.filter((t) => toolsets.includes(t)).flatMap((t) => GROUPS[t])
+}
+
+/** Every tool pounce can register. */
 export function allTools(): AnyToolDef[] {
-  return [
-    ...workflowReadTools,
-    ...genericReadTools,
-    ...extraReadTools,
-    ...workflowWriteTools,
-    ...genericWriteTools,
-    ...extraWriteTools,
-    ...workflowDeleteTools,
-    ...genericDeleteTools,
-    ...extraDeleteTools,
-    ...adminTools,
-    ...extraAdminTools,
-  ]
+  return toolsFor(TOOLSETS)
 }

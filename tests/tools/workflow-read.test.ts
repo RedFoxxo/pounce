@@ -284,12 +284,10 @@ describe('per-card reads', () => {
     expect((await h.call('read_times', {})).isError).toBe(true)
   })
 
-  it('read_attachments explains the download limitation', async () => {
+  it('read_attachments lists attachments', async () => {
     h = await harness({ stub: new FetchStub().get('/api/v1/Attachments', { Items: [{ Id: 1, Name: 'a.docx', Uri: 'https://tp.example/Attachment.aspx?AttachmentID=1' }] }) })
     const r = await h.call('read_attachments', { id: 5 })
     expect(r.json.attachments[0]).toMatchObject({ id: 1, name: 'a.docx' })
-    const tool = (await h.listTools()).find((t) => t.name === 'read_attachments')
-    expect(tool?.description).toMatch(/HTML error page/)
   })
 
   it('read_test_plan returns cases with ordered steps', async () => {

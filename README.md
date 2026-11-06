@@ -40,6 +40,7 @@ passes to it:
 | `TP_TOKEN` | yes | Your access token. Never logged |
 | `TP_DEFAULT_PROJECT_ID` | no | Project for new cards that have no parent to inherit one from |
 | `TP_DEFAULT_TEAM_ID` | no | Team for new cards when none is given |
+| `POUNCE_TOOLSETS` | no | Tool groups to expose, comma-separated: `cards`, `raw`, `admin` (default: all three). See [Tools](#tools) |
 
 Keep the token out of config files: export it in your shell profile
 (`export TP_TOKEN=...`) and let the client pass it through, as the examples
@@ -146,30 +147,34 @@ including ones added in later versions:
 
 ## Tools
 
-58 tools. Workflow tools are the ones to use day to day. Generic tools are the
-escape hatch that reaches every resource and operation your instance reports.
+58 tools in three toolsets. Every tool the client lists costs context on every
+request, so expose only the toolsets you use: `POUNCE_TOOLSETS=cards` gives 34
+tools, the day-to-day work on cards.
 
-**read** (26)
+**cards** (34): the workflow tools, plus card history and attachments.
 
-- Workflow: `read_card`, `read_search`, `read_my_work`, `read_states`,
+- read: `read_card`, `read_search`, `read_my_work`, `read_states`,
   `read_people`, `read_teams`, `read_roles`, `read_projects`, `read_releases`,
   `read_iterations`, `read_custom_field_options`, `read_comments`,
-  `read_relations`, `read_times`, `read_attachments`, `read_test_plan`
-- Generic: `read_meta`, `read_get`, `read_query`, `read_collection`,
-  `read_v2_query`, `read_history`, `read_context`, `read_conversions`,
-  `read_deleted`, `read_storage`
-
-**write** (20)
-
-- Workflow: `write_create_card`, `write_update_card`, `write_set_state`,
+  `read_relations`, `read_times`, `read_attachments`, `read_test_plan`,
+  `read_history`
+- write: `write_create_card`, `write_update_card`, `write_set_state`,
   `write_assign`, `write_unassign`, `write_set_role_effort`,
   `write_set_custom_fields`, `write_team`, `write_comment`, `write_log_time`,
-  `write_relate`, `write_follow`, `write_test_cases`, `write_test_run`
-- Generic: `write_create`, `write_update`, `write_bulk`,
-  `write_collection_add`, `write_storage`, `write_attachment`
+  `write_relate`, `write_follow`, `write_test_cases`, `write_test_run`,
+  `write_attachment`
+- delete: `delete_card`, `delete_relation`
 
-**delete** (6): `delete_card`, `delete_relation`, `delete_entity`, `delete_bulk`,
-`delete_collection_remove`, `delete_storage`
+**raw** (18): the generic tools, the escape hatch that reaches every resource
+and operation your instance reports.
+
+- read: `read_meta`, `read_get`, `read_query`, `read_collection`,
+  `read_v2_query`, `read_context`, `read_conversions`, `read_deleted`,
+  `read_storage`
+- write: `write_create`, `write_update`, `write_bulk`, `write_collection_add`,
+  `write_storage`
+- delete: `delete_entity`, `delete_bulk`, `delete_collection_remove`,
+  `delete_storage`
 
 **admin** (6): `admin_create`, `admin_update`, `admin_delete`,
 `admin_collection_add`, `admin_collection_remove`, `admin_undelete`

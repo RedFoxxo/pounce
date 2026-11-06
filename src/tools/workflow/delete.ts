@@ -25,12 +25,14 @@ const CHILD_COUNTS: Record<string, string[]> = {
 
 export const deleteCard = defineTool({
   name: 'delete_card',
-  description:
-    'Delete a card by id alone (its type is resolved). A card with child cards (a story\'s tasks and bugs, a feature\'s stories, an epic\'s ' +
-    'features, a test plan\'s test cases) is only ' +
-    "deleted with withChildren: true, since Targetprocess may delete them with it. Reports what was deleted and the parent card's state and " +
-    'efforts before/after.',
-  input: { id, withChildren: z.boolean().optional().describe('Confirm deleting a card that has child cards') },
+  description: "Delete a card by id; reports what was deleted and the parent card's state and efforts before/after.",
+  input: {
+    id,
+    withChildren: z
+      .boolean()
+      .optional()
+      .describe("Required for a card with child cards (a story's tasks and bugs, a feature's stories, ...): they may be deleted too"),
+  },
   handler: async (args, ctx) => {
     const card = await readCardRaw(ctx, args.id)
     if (!card.ok) return card.error ? failure(card.message, card.error) : invalid(card.message)
@@ -61,8 +63,8 @@ export const deleteCard = defineTool({
 
 export const deleteRelation = defineTool({
   name: 'delete_relation',
-  description: 'Delete the relation between two cards, in either direction. If they have several relations, pass relation (type name) to pick one.',
-  input: { id, to: id, relation: z.string().optional() },
+  description: 'Delete the relation between two cards, in either direction.',
+  input: { id, to: id, relation: z.string().optional().describe('Relation type name, when the cards have several') },
   handler: async (args, ctx) => {
     const include = '[Id,RelationType[Id,Name],Master[Id,Name],Slave[Id,Name]]'
     const [a, b] = await Promise.all([

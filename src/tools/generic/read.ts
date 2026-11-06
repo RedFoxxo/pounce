@@ -43,9 +43,7 @@ const queryShape = {
 
 export const readMeta = defineTool({
   name: 'read_meta',
-  description:
-    'Describe the Targetprocess resource catalog read from this instance. Without a resource: every resource with its operations. ' +
-    'With a resource: its fields (settable/required), references and collections (addable/removable). Use it before read_query/write_create.',
+  description: "Describe this instance's resources, or one resource's fields and collections. Use it before other raw tools.",
   input: { resource: resource.optional() },
   handler: async ({ resource: name }, ctx) => {
     const catalog = await ctx.catalog()
@@ -88,8 +86,7 @@ export const readMeta = defineTool({
 
 export const readGet = defineTool({
   name: 'read_get',
-  description:
-    'GET one entity of any resource by id (layer 1). Inner collections in include return up to 1000 items. Prefer read_card for cards.',
+  description: 'Get one entity of any resource by id (raw). Prefer read_card for cards.',
   input: {
     resource,
     id,
@@ -115,9 +112,7 @@ export const readGet = defineTool({
 
 export const readQuery = defineTool({
   name: 'read_query',
-  description:
-    'Query a collection of any resource with where/include/orderBy (layer 1), fully paged. ' +
-    `Returns {count, truncated, items}; default limit ${QUERY_DEFAULT}, max ${QUERY_MAX}. Use include to keep results small.`,
+  description: 'Query any resource with where/include/orderBy (raw), fully paged. Use include to keep results small.',
   input: { resource, ...queryShape },
   handler: async (args, ctx) => {
     const lookup = (await ctx.catalog()).resource(args.resource)
@@ -139,8 +134,7 @@ export const readQuery = defineTool({
 
 export const readCollection = defineTool({
   name: 'read_collection',
-  description:
-    'GET an inner collection of an entity, e.g. UserStories/{id}/Tasks or Bugs/{id}/Comments (layer 1), fully paged. See read_meta for collection names.',
+  description: 'Get an inner collection of an entity, e.g. UserStories/{id}/Tasks (raw), fully paged.',
   input: {
     resource,
     id,

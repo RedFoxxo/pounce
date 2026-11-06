@@ -1,9 +1,13 @@
+import { TOOLSETS, type Toolset } from './tools/types.js'
+
 export interface Config {
   /** Instance root without a trailing slash, e.g. `https://mamami.tpondemand.com`. */
   baseUrl: string
   token: string
   defaultProjectId?: number
   defaultTeamId?: number
+  /** Tool groups to expose; every group when unset. */
+  toolsets?: Toolset[]
 }
 
 export class ConfigError extends Error {
@@ -21,6 +25,18 @@ function optionalId(env: NodeJS.ProcessEnv, key: string, problems: string[]): nu
     return undefined
   }
   return value
+}
+
+function toolsets(env: NodeJS.ProcessEnv, problems: string[]): Toolset[] | undefined {
+  const raw = env.POUNCE_TOOLSETS?.trim()
+  if (!raw) return undefined
+  const names = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+  const unknown = names.filter((n) => !TOOLSETS.some((t) => t === n))
+  if (unknown.length > 0) {
+    problems.push(`POUNCE_TOOLSETS has unknown toolsets: ${unknown.join(', ')} (known: ${TOOLSETS.join(', ')})`)
+    return undefined
+  }
+  return TOOLSETS.filter((t) => names.includes(t))
 }
 
 /** Reads and validates the environment. Throws `ConfigError` listing every problem at once. */
@@ -54,6 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   const defaultProjectId = optionalId(env, 'TP_DEFAULT_PROJECT_ID', problems)
   const defaultTeamId = optionalId(env, 'TP_DEFAULT_TEAM_ID', problems)
+  const sets = toolsets(env, problems)
 
   if (problems.length > 0) {
     throw new ConfigError(`Invalid pounce configuration:\n- ${problems.join('\n- ')}`)
@@ -62,5 +79,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const config: Config = { baseUrl, token }
   if (defaultProjectId !== undefined) config.defaultProjectId = defaultProjectId
   if (defaultTeamId !== undefined) config.defaultTeamId = defaultTeamId
+  if (sets !== undefined) config.toolsets = sets
   return config
 }

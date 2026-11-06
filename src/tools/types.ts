@@ -6,6 +6,14 @@ export type Tier = 'read' | 'write' | 'delete' | 'admin'
 
 export const TIERS: readonly Tier[] = ['read', 'write', 'delete', 'admin']
 
+/**
+ * Groups of tools a server exposes (`POUNCE_TOOLSETS`): `cards` are the layer 2
+ * workflow tools, `raw` the layer 1 catalog tools, `admin` the `admin_` tier.
+ */
+export type Toolset = 'cards' | 'raw' | 'admin'
+
+export const TOOLSETS: readonly Toolset[] = ['cards', 'raw', 'admin']
+
 export type ToolOutput = CallToolResult
 
 export interface ToolDef<S extends z.ZodRawShape = z.ZodRawShape> {

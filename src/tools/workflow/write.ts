@@ -17,13 +17,12 @@ import type { ToolContext } from '../context.js'
 import { prepareBody, unpersisted } from '../generic/validate.js'
 import { isAdminResource } from '../generic/policy.js'
 import { failure, invalid, success } from '../respond.js'
-import { id } from '../schema.js'
+import { id, nameOrId } from '../schema.js'
 import { defineTool, type ToolOutput } from '../types.js'
 import { unresolved } from './common.js'
 
 type Raw = Record<string, unknown>
 
-const nameOrId = z.union([z.string().min(1), z.number().int().positive()])
 const person = nameOrId.describe('Person name, login, email, id, or "me"')
 const role = nameOrId.describe('Role name or id, e.g. "Developer", "Product Owner"')
 const effortValue = z.number().min(0).max(100_000)
@@ -64,10 +63,7 @@ function partial(summary: string, error: Err, done: unknown[]): ToolOutput {
 
 export const writeSetState = defineTool({
   name: 'write_set_state',
-  description:
-    "Move a card to a state by name or id, resolved against the card's own project workflow. With team, sets that team's state on the card " +
-    '(its team sub-workflow, or the project workflow when the team has none). The state is read back, and the parent card\'s state before/after is ' +
-    'reported: moving a task out of its initial state can advance its user story.',
+  description: "Move a card, or one team's state on it, to a state by name or id; reports the parent card's state change.",
   input: { id, state: nameOrId.describe('State name or id, e.g. "In Progress", "Coded"'), team: nameOrId.optional().describe('Team whose team state to set') },
   handler: async (args, ctx) => {
     const loaded = await load(ctx, args.id)
@@ -147,10 +143,13 @@ export const writeSetState = defineTool({
 
 export const writeAssign = defineTool({
   name: 'write_assign',
-  description:
-    'Assign a person to a card in a role (names or ids; "me" for yourself). Adds to existing assignments; with exclusive: true, also removes ' +
-    'everyone else in that role (only when explicitly asked). Reports what was removed and reads the assignments back.',
-  input: { id, user: person, role, exclusive: z.boolean().optional() },
+  description: 'Assign a person to a card in a role, adding to existing assignments; reads the assignments back.',
+  input: {
+    id,
+    user: person,
+    role,
+    exclusive: z.boolean().optional().describe('Also remove everyone else in this role; only when explicitly asked'),
+  },
   handler: async (args, ctx) => {
     const info = await cardInfo(ctx, args.id)
     if (!info.ok) return unresolved(info)
@@ -204,7 +203,7 @@ export const writeAssign = defineTool({
 
 export const writeUnassign = defineTool({
   name: 'write_unassign',
-  description: 'Remove one exact assignment (person + role) from a card. If the person holds several roles on the card, the role is required.',
+  description: "Remove one person's assignment from a card; role is required when they hold several.",
   input: { id, user: person, role: role.optional() },
   handler: async (args, ctx) => {
     const user = await resolvePerson(ctx, args.user, { allowInactive: true })
@@ -262,10 +261,7 @@ async function resolveEfforts(ctx: ToolContext, list: { role: string | number; e
 
 export const writeSetRoleEffort = defineTool({
   name: 'write_set_role_effort',
-  description:
-    'Set effort for one or more roles on a card. Effort always belongs to a role: this writes the RoleEffort rows, never the card total, which ' +
-    "Targetprocess computes from them. A role is required. Task role efforts ROLL UP into the parent user story, overwriting the story's value " +
-    'for that role; the parent\'s before/after values are reported rather than assuming the story estimate was kept.',
+  description: "Set effort per role on a card (never the card total). A task's efforts roll up into its story; both are reported.",
   input: { id, efforts: effortsInput },
   handler: async (args, ctx) => {
     const loaded = await load(ctx, args.id)
@@ -302,9 +298,7 @@ export const writeSetRoleEffort = defineTool({
 
 export const writeSetCustomFields = defineTool({
   name: 'write_set_custom_fields',
-  description:
-    "Set custom fields on a card by name, e.g. {\"BackEnd\":\"Done\",\"FrontEnd\":\"To Do\"}. Dropdown values are validated against the field's " +
-    'options (see read_custom_field_options) before anything is sent; null clears a field. Values are read back.',
+  description: 'Set custom fields by name, e.g. {"BackEnd":"Done"}; dropdown values are validated first, null clears.',
   input: { id, fields: z.record(z.string(), z.unknown()).refine((v) => Object.keys(v).length > 0, 'give at least one field') },
   handler: async (args, ctx) => {
     const loaded = await load(ctx, args.id)
@@ -326,7 +320,7 @@ export const writeSetCustomFields = defineTool({
 
 export const writeTeam = defineTool({
   name: 'write_team',
-  description: 'Add teams to or remove teams from a card (names or ids). Adding appends; removing deletes only the named team assignment.',
+  description: 'Add or remove teams on a card (names or ids).',
   input: { id, add: z.array(nameOrId).optional(), remove: z.array(nameOrId).optional() },
   handler: async (args, ctx) => {
     if (!args.add?.length && !args.remove?.length) return invalid('pass add and/or remove')
@@ -450,10 +444,7 @@ const refOrNull = z.union([id, z.null()])
 const richFormat = z
   .enum(['markdown', 'html', 'text'])
   .optional()
-  .describe(
-    'How the text is written: markdown (stored as a Targetprocess Markdown description), html (sent as-is), or text (plain lines). ' +
-      'Default: HTML and text starting with <!--markdown--> are kept, anything else is treated as plain text, so Markdown needs format: markdown.',
-  )
+  .describe('markdown, html (sent as-is) or text (plain lines). Default: plain text unless it is HTML, so Markdown needs format: markdown.')
 const tag = z.string().trim().min(1).refine((t) => !t.includes(','), 'a tag cannot contain a comma (Targetprocess separates tags with commas)')
 
 /** Fields that have their own argument or tool, because a domain rule applies to them. */
@@ -503,11 +494,7 @@ function localDate(now = new Date()): string {
 export const writeCreateCard = defineTool({
   name: 'write_create_card',
   description:
-    'Create any card type (UserStory, Task, Bug, Feature, Epic, TestPlan, Request, ...) with parent, name, description, state, team, assignees, ' +
-    'role efforts, tags and custom fields, applying the team rules: the project is inherited from the parent (task ← story, story ← feature, ' +
-    'feature ← epic, bug ← its card, test case ← test plan) and the call fails before posting if none resolves; assignments Targetprocess adds by ' +
-    'default are removed and reported, then exactly the requested people are assigned; effort is written per role; the parent\'s state and ' +
-    'role efforts before/after are reported. Description: pass format markdown for Markdown; HTML is sent as-is, plain text lines become paragraphs.',
+    'Create a card under its parent, inheriting the project; replaces default assignees with the requested ones, reports parent changes.',
   input: {
     type: z.string().min(1).describe('Entity type, e.g. UserStory, Task, Bug'),
     name: z.string().min(1),
@@ -531,7 +518,7 @@ export const writeCreateCard = defineTool({
     const lookup = catalog.resource(args.type)
     if (!lookup.ok) return invalid(lookup.message)
     const resource = lookup.value
-    if (!isCardResource(resource) || isAdminResource(resource)) return invalid(`${resource.name} is not a card type pounce creates here; use write_create`)
+    if (!isCardResource(resource) || isAdminResource(resource)) return invalid(`${resource.name} is not a card type pounce creates here; use write_create (raw toolset)`)
 
     // ---- resolve everything before posting
     const body: Record<string, unknown> = { Name: args.name }
@@ -735,23 +722,23 @@ export const writeCreateCard = defineTool({
 
 export const writeUpdateCard = defineTool({
   name: 'write_update_card',
-  description:
-    'Update a card: name, description, tags (tags replaces the whole list; addTags/removeTags edit it), release, iteration, team iteration ' +
-    '(null clears), parent, or other settable fields. Description: pass format markdown for Markdown. Changes are read back; removed tags are reported. For a test case, parent ADDS it to ' +
-    'that test plan (existing plans are kept). For state, people, effort, teams and custom fields use the dedicated write_* tools.',
+  description: "Update a card's name, description, tags, release, iteration, parent or other fields; changes are read back.",
   input: {
     id,
     name: z.string().min(1).optional(),
     description: z.string().optional(),
     format: richFormat,
-    tags: z.array(tag).optional(),
+    tags: z.array(tag).optional().describe('Replaces the whole list; use addTags/removeTags to edit it'),
     addTags: z.array(tag).optional(),
     removeTags: z.array(z.string().min(1)).optional(),
     release: refOrNull.optional(),
     iteration: refOrNull.optional(),
     teamIteration: refOrNull.optional(),
-    parent: id.optional(),
-    fields: z.record(z.string(), z.unknown()).optional(),
+    parent: id.optional().describe('New parent card; for a test case, a test plan to ADD it to (existing plans are kept)'),
+    fields: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe('Other settable fields; state, people, effort, teams and custom fields have their own tools'),
   },
   handler: async (args, ctx) => {
     const loaded = await load(ctx, args.id)
@@ -792,7 +779,7 @@ export const writeUpdateCard = defineTool({
     let extraFields: Record<string, unknown> = {}
     if (args.fields && Object.keys(args.fields).length) {
       const reserved = reservedFields(args.fields)
-      if (reserved) return invalid(`${reserved}\n(write_update is the escape hatch for an explicit override)`)
+      if (reserved) return invalid(`${reserved}\n(write_update in the raw toolset is the escape hatch for an explicit override)`)
       const extra = prepareBody(catalog, card.info.resource, args.fields, 'update')
       if (!extra.ok) return invalid(extra.message)
       extraFields = extra.value
@@ -821,9 +808,7 @@ export const writeUpdateCard = defineTool({
 
 export const writeComment = defineTool({
   name: 'write_comment',
-  description:
-    'Add a comment to a card. Pass format markdown for Markdown; otherwise plain text lines become paragraphs and HTML is sent as-is. ' +
-    'replyTo answers another comment.',
+  description: 'Add a comment to a card, or reply to one with replyTo.',
   input: { id, text: z.string().min(1), format: richFormat, replyTo: id.optional(), private: z.boolean().optional() },
   handler: async (args, ctx) => {
     const body: Record<string, unknown> = { General: { Id: args.id }, Description: textToHtml(args.text, args.format) }
@@ -842,18 +827,14 @@ export const writeComment = defineTool({
 
 export const writeLogTime = defineTool({
   name: 'write_log_time',
-  description:
-    'Log time spent on a card for a person (default: you). date is YYYY-MM-DD (default: today in the server\'s time zone). Where the card\'s ' +
-    'process tracks time, this is a Time entry and the role defaults to the person\'s only role on the card (pass role if they have none or ' +
-    'several). Where the process has no Time Tracking practice but the instance tracks time in a TimeRecord type, this creates a time record ' +
-    'linked to the person and the card (and a task\'s story); records have no role or remaining time, and Targetprocess names them itself.',
+  description: 'Log time spent on a card for a person (default: you, today). Creates a Time entry or a time record, as the process tracks it.',
   input: {
     id,
     spent: z.number().positive().max(1000),
     remain: z.number().min(0).max(100_000).optional().describe('Remaining time to record on the card'),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("YYYY-MM-DD; default today in the server's time zone"),
     description: z.string().optional(),
-    role: role.optional(),
+    role: role.optional().describe("Defaults to the person's only role on the card; required when they have none or several"),
     user: person.optional(),
   },
   handler: async (args, ctx) => {
@@ -969,14 +950,12 @@ async function logTimeRecord(
 
 export const writeRelate = defineTool({
   name: 'write_relate',
-  description:
-    'Relate two cards: relation Dependency, Blocker, Relation (default), Link or Duplicate (or any type on the instance). outbound (default): ' +
-    'id → to (id is the master); inbound: to → id. An existing identical relation is left alone.',
+  description: 'Relate two cards (Relation by default; Dependency, Blocker, Link, Duplicate, ...). An identical relation is left alone.',
   input: {
     id,
     to: id,
     relation: nameOrId.optional(),
-    direction: z.enum(['outbound', 'inbound']).optional(),
+    direction: z.enum(['outbound', 'inbound']).optional().describe('outbound (default): id is the master of to; inbound: to is the master'),
   },
   handler: async (args, ctx) => {
     if (args.id === args.to) return invalid('a card cannot relate to itself')
@@ -1034,7 +1013,7 @@ export const writeFollow = defineTool({
 
 export const writeTestCases = defineTool({
   name: 'write_test_cases',
-  description: 'Create test cases with ordered steps under a test plan. The project is inherited from the test plan. Each case is read back.',
+  description: 'Create test cases with ordered steps under a test plan; each case is read back.',
   input: {
     testPlan: id,
     cases: z
@@ -1091,9 +1070,7 @@ const RUN_STATUSES = ['Passed', 'Failed', 'Blocked', 'OnHold', 'NotRun'] as cons
 
 export const writeTestRun = defineTool({
   name: 'write_test_run',
-  description:
-    'Record a test run of a test plan: creates a test plan run (Targetprocess adds a "Not run" test case run per case), then sets each given ' +
-    `test case's result (${RUN_STATUSES.join(', ')}) with an optional comment.`,
+  description: `Record a run of a test plan, with a result per test case (${RUN_STATUSES.join(', ')}).`,
   input: {
     testPlan: id,
     name: z.string().optional(),

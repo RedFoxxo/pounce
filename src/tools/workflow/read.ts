@@ -7,7 +7,7 @@ import { match, norm } from '../../resolve/match.js'
 import { suggestions } from '../../catalog/catalog.js'
 import type { ToolContext } from '../context.js'
 import { failure, invalid, success } from '../respond.js'
-import { id } from '../schema.js'
+import { id, limit as listLimit, nameOrId } from '../schema.js'
 import { defineTool, type ToolOutput } from '../types.js'
 import { typeScope, unresolved } from './common.js'
 import { timeBackend, timeRecordBackend, type TimeBackend } from '../../domain/time.js'
@@ -15,14 +15,9 @@ import { cardInfo } from '../../resolve/card.js'
 
 type Raw = Record<string, unknown>
 
-const nameOrId = z.union([z.string().min(1), z.number().int().positive()])
-const listLimit = (d: number, max: number) => z.number().int().min(1).max(max).optional().describe(`Maximum results (default ${d}, max ${max}); capped results say truncated: true`)
-
 export const readCard = defineTool({
   name: 'read_card',
-  description:
-    'Read any card (user story, task, bug, feature, epic, test plan, ...) by id: type, name, state, project, parent chain, teams with team states, ' +
-    'assignments (who is assigned in which role), role efforts, effort totals, release/iteration, custom fields, tags, counts, and the description as plain text.',
+  description: 'Read a card by id: state, project, parents, teams, assignments, role efforts, custom fields, tags, description.',
   input: { id },
   handler: async ({ id: cardId }, ctx) => {
     const card = await readCardRaw(ctx, cardId)
@@ -117,11 +112,9 @@ async function searchCards(ctx: ToolContext, args: SearchArgs, extra: Record<str
 
 export const readSearch = defineTool({
   name: 'read_search',
-  description:
-    'Find cards by text in the name (or #id; bare digits match the id and the name), type, state, project, assignee ("me" for yourself) and ' +
-    'tag. Open cards only unless includeClosed. Names and states are resolved; ambiguous names are listed, never guessed. Newest-modified first.',
+  description: 'Find cards by name text or #id, type, state, project, assignee and tag; open cards only unless includeClosed.',
   input: {
-    text: z.string().optional().describe('Text contained in the card name, or a #id'),
+    text: z.string().optional().describe('Text in the card name, or a #id (bare digits match the id and the name)'),
     type: z.string().optional().describe('Entity type, e.g. UserStory, Task, Bug, Feature (default: any assignable card)'),
     state: z.string().optional().describe('State name, e.g. "In Progress"'),
     project: nameOrId.optional().describe('Project name, abbreviation or id'),
@@ -151,9 +144,7 @@ export const readMyWork = defineTool({
 
 export const readStates = defineTool({
   name: 'read_states',
-  description:
-    "States available to a card (from its own project's process), or to an entity type in a project. " +
-    'Team sub-workflow states are flagged isTeamWorkflow; for a card, its current state and team states are included.',
+  description: "States of a card's own workflow, or of a type in a project; team workflow states are flagged isTeamWorkflow.",
   input: {
     id: id.optional().describe('Card id'),
     project: nameOrId.optional().describe('Project (when no card id)'),
@@ -210,9 +201,7 @@ function catalogHas(catalog: Awaited<ReturnType<ToolContext['catalog']>>, resour
 
 export const readPeople = defineTool({
   name: 'read_people',
-  description:
-    'Find people by name, login or email (every word must match), fully paged over all users. Without a query, lists everyone active. ' +
-    'Use the returned ids when a name is ambiguous.',
+  description: 'Find people by name, login or email (every word must match); without a query, everyone active.',
   input: {
     query: z.string().optional(),
     includeInactive: z.boolean().optional(),
@@ -259,7 +248,7 @@ export const readTeams = defineTool({
 
 export const readRoles = defineTool({
   name: 'read_roles',
-  description: 'List roles (Developer, Product Owner, ...). hasEffort tells whether a role can carry effort.',
+  description: 'List roles; hasEffort tells whether a role can carry effort.',
   input: {},
   handler: async (_args, ctx) => {
     const roles = await ctx.directory.roles()
@@ -270,7 +259,7 @@ export const readRoles = defineTool({
 
 export const readProjects = defineTool({
   name: 'read_projects',
-  description: 'List projects (active by default) with abbreviation and process, optionally filtered by name.',
+  description: 'List projects (active by default) with abbreviation and process.',
   input: { query: z.string().optional(), includeInactive: z.boolean().optional() },
   handler: async (args, ctx) => {
     const projects = await ctx.directory.projects()
@@ -300,7 +289,7 @@ function dated(raw: Raw) {
 
 export const readReleases = defineTool({
   name: 'read_releases',
-  description: 'Releases, newest first, optionally for one project; currentOnly for releases in progress.',
+  description: 'Releases, newest first, optionally for one project.',
   input: { project: nameOrId.optional(), currentOnly: z.boolean().optional(), limit: listLimit(50, 1000) },
   handler: async (args, ctx) => {
     const where: string[] = []
@@ -323,9 +312,7 @@ export const readReleases = defineTool({
 
 export const readIterations = defineTool({
   name: 'read_iterations',
-  description:
-    'Team iterations (sprints) for a team, or project iterations for a project; newest first. currentOnly for the running ones. ' +
-    'Without team or project: current team iterations of every team.',
+  description: "Team or project iterations (sprints), newest first; without team or project, every team's current ones.",
   input: { team: nameOrId.optional(), project: nameOrId.optional(), currentOnly: z.boolean().optional(), limit: listLimit(50, 1000) },
   handler: async (args, ctx) => {
     if (args.project !== undefined && args.team !== undefined) return invalid('pass team (team iterations) or project (project iterations), not both')
@@ -352,9 +339,7 @@ export const readIterations = defineTool({
 
 export const readCustomFieldOptions = defineTool({
   name: 'read_custom_field_options',
-  description:
-    "Custom fields of a card's type (or of an entity type in a project) with their type and, for dropdowns, the allowed values. " +
-    'Pass field to see one field.',
+  description: "Custom fields of a card's type, or of a type in a project, with the allowed dropdown values.",
   input: { id: id.optional(), project: nameOrId.optional(), type: z.string().optional(), field: z.string().optional() },
   handler: async (args, ctx) => {
     const scope = await typeScope(ctx, args)
@@ -378,7 +363,7 @@ export const readCustomFieldOptions = defineTool({
 
 export const readComments = defineTool({
   name: 'read_comments',
-  description: 'Comments on a card, oldest first, as plain text, with author and reply parent. When capped, the most recent comments are kept.',
+  description: 'Comments on a card as plain text, oldest first, with author and reply parent.',
   input: { id, limit: listLimit(200, 5000) },
   handler: async (args, ctx) => {
     // Newest first so a cap drops the oldest, then shown oldest first.
@@ -408,7 +393,7 @@ function relationEnd(raw: unknown) {
 
 export const readRelations = defineTool({
   name: 'read_relations',
-  description: 'Relations of a card in both directions (dependency, blocker, relation, link, duplicate), with the related card.',
+  description: 'Relations of a card in both directions, with the related card.',
   input: { id },
   handler: async (args, ctx) => {
     const include = '[Id,RelationType[Id,Name],Master[Id,Name,EntityType[Name]],Slave[Id,Name,EntityType[Name]]]'
@@ -447,15 +432,12 @@ function recordEntry(r: Raw, backend: Extract<TimeBackend, { kind: 'TimeRecord' 
 
 export const readTimes = defineTool({
   name: 'read_times',
-  description:
-    'Time logged on a card, or by a person ("me" for yourself), optionally within dates (YYYY-MM-DD). Returns entries and the total spent. ' +
-    'Reads Time entries where the card\'s process tracks time, and TimeRecord entries where the instance tracks time that way (a story\'s ' +
-    'records include those of its tasks). By person alone, both kinds are returned.',
+  description: 'Time logged on a card or by a person, optionally between dates, with the total spent.',
   input: {
     id: id.optional().describe('Card id'),
     user: nameOrId.optional().describe('Person, or "me"'),
-    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('YYYY-MM-DD'),
     limit: listLimit(500, 5000),
   },
   handler: async (args, ctx) => {
@@ -537,8 +519,7 @@ export const readTimes = defineTool({
 
 export const readAttachments = defineTool({
   name: 'read_attachments',
-  description:
-    'Attachments of a card: name, size, type, owner, date and URL. Downloading needs Basic or cookie auth; with an access token Targetprocess returns an HTML error page instead of the file.',
+  description: 'Attachments of a card with name, size, owner, date and URL. URLs need Basic or cookie auth, not the token.',
   input: { id },
   handler: async (args, ctx) => {
     const r = await ctx.v1.list<Raw>('Attachments', {
@@ -559,7 +540,7 @@ export const readAttachments = defineTool({
 
 export const readTestPlan = defineTool({
   name: 'read_test_plan',
-  description: 'A test plan with its test cases and their steps (in run order), child test plans, and recent test plan runs.',
+  description: 'A test plan with its test cases and ordered steps, child test plans, and recent runs.',
   input: { id, runs: z.number().int().min(0).max(100).optional().describe('How many recent runs to include (default 10)') },
   handler: async (args, ctx) => {
     const plan = await ctx.v1.get<Raw>('TestPlans', args.id, {

@@ -17,6 +17,18 @@ describe('server', () => {
     expect(tools.map((t) => t.name).sort()).toEqual(allTools().map((t) => t.name).sort())
     await h.close()
   })
+
+  it('exposes only the configured toolsets', async () => {
+    const h = await harness({ config: { toolsets: ['cards'] } })
+    const names = (await h.listTools()).map((t) => t.name)
+    expect(names).toContain('read_card')
+    expect(names).toContain('read_history')
+    expect(names).not.toContain('read_query')
+    expect(names.some((n) => n.startsWith('admin_'))).toBe(false)
+    expect((await h.call('write_create', { resource: 'UserStory', fields: { Name: 'x' } })).isError).toBe(true)
+    expect(h.stub.calls).toHaveLength(0)
+    await h.close()
+  })
 })
 
 describe('tool naming contract', () => {

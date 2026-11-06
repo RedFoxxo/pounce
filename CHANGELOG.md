@@ -4,6 +4,17 @@ Versions follow [Semantic Versioning](https://semver.org/). The version lives in
 `package.json` and `src/version.ts` (a test keeps them equal) and is reported to
 MCP clients in the server handshake.
 
+## 1.1.0 — 2026-11-06
+
+- Toolsets: `POUNCE_TOOLSETS` (`cards`, `raw`, `admin`, comma-separated) limits
+  the tools pounce registers. Unset, all 58 are registered as before;
+  `POUNCE_TOOLSETS=cards` registers the 34 card tools.
+- Shorter tool descriptions: one sentence each, with the rules that matter
+  before a call moved into the parameter they concern. Listing all 58 tools
+  now costs about 8,000 tokens instead of 11,200 (about 4,450 for `cards`).
+- Id parameters publish a compact `{"type":"number"}` schema; numeric strings
+  are still accepted.
+
 ## 1.0.1 — 2026-09-23
 
 - Markdown descriptions and comments: `write_create_card`, `write_update_card`

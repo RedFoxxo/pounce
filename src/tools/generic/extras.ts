@@ -13,17 +13,14 @@ type Raw = Record<string, unknown>
 
 export const readV2Query = defineTool({
   name: 'read_v2_query',
-  description:
-    'Targetprocess REST v2 query (read-only): select with projections and nested collections, where with ==, !=, and, or, ' +
-    'aggregations via result, board filter DSL via filter. Entity is singular (userStory, bug, feature). v2 omits null fields: absence means null. ' +
-    'Filters use v2 syntax, e.g. where=(entityState.isFinal==false and project.id==2), select={id,name,tasks.count as tasks}.',
+  description: 'Targetprocess v2 query (raw): select, where with and/or, aggregations. v2 omits null fields: absence means null.',
   input: {
-    entity: z.string().regex(/^[A-Za-z]+$/, 'entity name, e.g. userStory'),
-    select: z.string().optional(),
-    where: z.string().optional(),
+    entity: z.string().regex(/^[A-Za-z]+$/, 'entity name, e.g. userStory').describe('Singular, camelCase: userStory, bug, feature'),
+    select: z.string().optional().describe('e.g. {id,name,tasks.count as tasks}'),
+    where: z.string().optional().describe('v2 syntax, e.g. (entityState.isFinal==false and project.id==2)'),
     result: z.string().optional().describe('Aggregation, e.g. {count:count,effort:sum(effort)}; returns one object'),
     orderBy: z.string().optional().describe('e.g. "createDate desc"'),
-    filter: z.string().optional(),
+    filter: z.string().optional().describe('Board filter DSL'),
     includeDeleted: z.boolean().optional(),
     limit: limit(500, 5000),
   },
@@ -51,7 +48,7 @@ export const readV2Query = defineTool({
 
 export const readDeleted = defineTool({
   name: 'read_deleted',
-  description: 'Deleted projects or users (v2 includeDeleted), with their delete date. Restoring them needs admin_undelete and an administrator token.',
+  description: 'Deleted projects or users, with their delete date (restore: admin_undelete).',
   input: { kind: z.enum(['projects', 'users']), limit: limit(500, 5000) },
   handler: async (args, ctx) => {
     const select = args.kind === 'users' ? '{id,firstName,lastName,login,email,deleteDate}' : '{id,name,abbreviation,deleteDate}'
@@ -99,11 +96,13 @@ function simpleEntry(raw: Raw) {
 
 export const readHistory = defineTool({
   name: 'read_history',
-  description:
-    'Change history of an entity, oldest first (when capped, the most recent entries are kept). Simple history (default) records state, ' +
-    'effort, release and iteration changes; full: true ' +
-    'returns every change with the changed fields and their new values. resource is resolved from the id for cards; pass it for other entities (e.g. Comment).',
-  input: { id, resource: resourceArg.optional(), full: z.boolean().optional(), limit: limit(200, 5000) },
+  description: 'Change history of an entity, oldest first: state, effort, release, iteration; full: true for every field change.',
+  input: {
+    id,
+    resource: resourceArg.optional().describe('Omit for cards; needed for other entities, e.g. Comment'),
+    full: z.boolean().optional(),
+    limit: limit(200, 5000),
+  },
   handler: async (args, ctx) => {
     const catalog = await ctx.catalog()
     let r
@@ -139,9 +138,7 @@ export const readHistory = defineTool({
 
 export const readContext = defineTool({
   name: 'read_context',
-  description:
-    'Targetprocess Context for entity ids, or for projects and teams: processes and their practices (e.g. IsStoryEffortEqualsSumTasksEffort), ' +
-    'terms, custom field definitions, selected projects/teams, logged user, version. Without arguments: the global context.',
+  description: 'Targetprocess Context for entities, projects or teams: processes, practices, terms, custom field definitions.',
   input: {
     ids: z.array(id).optional().describe('Entity ids'),
     projectIds: z.array(id).optional(),
@@ -162,7 +159,7 @@ export const readContext = defineTool({
 
 export const readConversions = defineTool({
   name: 'read_conversions',
-  description: 'Type conversions of a card (e.g. a bug converted to a user story): the id it has now if it was converted, and the ids it was converted from.',
+  description: 'Type conversions of a card: its current id if it was converted, and the ids it was converted from.',
   input: { id },
   handler: async (args, ctx) => {
     const include = '[Id,FromGeneralID,FromGeneralType[Id,Name],ActualGeneral[Id,Name,EntityType[Name]]]'
@@ -187,10 +184,14 @@ const storageName = z.string().regex(/^[\w.\-]+$/, 'letters, digits, _ . - only'
 
 export const readStorage = defineTool({
   name: 'read_storage',
-  description:
-    'RESTful storage, where views, boards and settings live. No group: list groups. Group: its storages (select/where in storage syntax, ' +
-    'e.g. select={key,publicData.name} where=(scope == "Public")). Group + key: one storage with publicData and userData.',
-  input: { group: storageName.optional(), key: storageName.optional(), select: z.string().optional(), where: z.string().optional(), limit: limit(100, 1000) },
+  description: 'RESTful storage (views, boards, settings): list groups, a group\'s storages, or one storage by group and key.',
+  input: {
+    group: storageName.optional(),
+    key: storageName.optional(),
+    select: z.string().optional().describe('Storage syntax, e.g. {key,publicData.name}'),
+    where: z.string().optional().describe('Storage syntax, e.g. (scope == "Public")'),
+    limit: limit(100, 1000),
+  },
   handler: async (args, ctx) => {
     if (args.key && !args.group) return invalid('key needs a group')
     const path = `/storage/v1/${args.group ? encodeURIComponent(args.group) : ''}${args.key ? `/${encodeURIComponent(args.key)}` : ''}`
@@ -205,9 +206,7 @@ export const readStorage = defineTool({
 
 export const writeStorage = defineTool({
   name: 'write_storage',
-  description:
-    'Create or update a storage entry. MERGE semantics: posted publicData/userData keys are added or overwritten, other keys are kept, a null ' +
-    'value deletes that key. A missing group or key is created. Scope and publicData can be changed only by the owner or an administrator.',
+  description: 'Create or merge a storage entry: posted keys are set, other keys kept, null deletes a key. Owner or admin only.',
   input: {
     group: storageName,
     key: storageName.optional().describe('Omit to let Targetprocess generate one'),
@@ -241,7 +240,7 @@ export const writeStorage = defineTool({
 
 export const deleteStorage = defineTool({
   name: 'delete_storage',
-  description: 'Delete one storage entry (only its owner or an administrator can).',
+  description: 'Delete one storage entry (owner or admin only).',
   input: { group: storageName, key: storageName },
   handler: async (args, ctx) => {
     const path = `/storage/v1/${encodeURIComponent(args.group)}/${encodeURIComponent(args.key)}`
@@ -259,9 +258,7 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 
 export const writeAttachment = defineTool({
   name: 'write_attachment',
-  description:
-    'Upload files to a card (UploadFile.ashx). Each file is given as base64 content with a name; pounce never reads local files itself, ' +
-    'so the client decides what may be uploaded. Attachments are read back to confirm they arrived.',
+  description: 'Upload base64-encoded files to a card and read them back; pounce never reads local files.',
   input: {
     id,
     files: z
@@ -308,9 +305,7 @@ export const writeAttachment = defineTool({
 
 export const adminUndelete = defineTool({
   name: 'admin_undelete',
-  description:
-    'Restore deleted entities by id and entity type (e.g. UserStory, Project, User). Administrator token required. Comments, milestones and ' +
-    'programs cannot be undeleted.',
+  description: 'Restore deleted entities by id and entity type; needs an administrator token. Comments cannot be undeleted.',
   input: {
     items: z.array(z.object({ id, entityType: z.string().regex(/^[A-Za-z]+$/) })).min(1).max(500),
   },
@@ -324,7 +319,7 @@ export const adminUndelete = defineTool({
   },
 })
 
-export const extraReadTools = [readV2Query, readHistory, readContext, readConversions, readDeleted, readStorage]
-export const extraWriteTools = [writeStorage, writeAttachment]
-export const extraDeleteTools = [deleteStorage]
+/** History and attachments serve cards; the rest is raw API surface. */
+export const extraCardTools = [readHistory, writeAttachment]
+export const extraRawTools = [readV2Query, readContext, readConversions, readDeleted, readStorage, writeStorage, deleteStorage]
 export const extraAdminTools = [adminUndelete]

@@ -121,26 +121,27 @@ const collectionItems = z
 
 export const writeCreate = defineTool({
   name: 'write_create',
-  description:
-    'Create an entity of any resource that supports create (layer 1), validated against the catalog before sending. ' +
-    'Nested children may be included, e.g. {"Name":"Story","Project":{"Id":2},"Tasks":{"Items":[{"Name":"T1"}]}}. ' +
-    'Never include Id. Custom fields go in "CustomFields":[{"Name","Value"}]. Prefer write_create_card for cards: it applies the team rules.',
-  input: { resource, fields },
+  description: 'Create an entity of any resource (raw), validated against the catalog. Prefer write_create_card for cards.',
+  input: {
+    resource,
+    fields: fields.describe(
+      'Targetprocess JSON without Id, e.g. {"Name":"x","Project":{"Id":2}}; children nest as {"Tasks":{"Items":[...]}}; ' +
+        'custom fields as "CustomFields":[{"Name","Value"}]',
+    ),
+  },
   handler: (args, ctx) => createEntity(ctx, 'write', args),
 })
 
 export const writeUpdate = defineTool({
   name: 'write_update',
-  description:
-    'Update fields of an existing entity (layer 1), validated against the catalog before sending. The response is read back and ' +
-    'any requested value that did not persist is reported. Writing a card Effort here bypasses role efforts; use write_set_role_effort instead.',
+  description: 'Update fields of any entity (raw), validated and read back. Card effort: use write_set_role_effort.',
   input: { resource, id, fields },
   handler: (args, ctx) => updateEntity(ctx, 'write', args),
 })
 
 export const writeBulk = defineTool({
   name: 'write_bulk',
-  description: `Create or update up to ${BULK_LIMIT} entities of one resource in one call (layer 1). Items with "Id" update, items without create. Every item is validated first; nothing is sent if any item is invalid.`,
+  description: `Create or update up to ${BULK_LIMIT} entities of one resource (raw); items with "Id" update. Nothing is sent if one is invalid.`,
   input: {
     resource,
     items: z.array(z.record(z.string(), z.unknown())).min(1).max(BULK_LIMIT),
@@ -184,23 +185,21 @@ export const writeBulk = defineTool({
 
 export const writeCollectionAdd = defineTool({
   name: 'write_collection_add',
-  description:
-    'Add items to an addable collection of an entity (layer 1). Collection posts APPEND to what is there; nothing is replaced. ' +
-    'For assignments, teams and role efforts prefer write_assign, write_team and write_set_role_effort.',
+  description: 'Append items to a collection of any entity (raw); nothing is replaced.',
   input: { resource, id, collection: collectionName, items: collectionItems },
   handler: (args, ctx) => addToCollection(ctx, 'write', args),
 })
 
 export const deleteEntityTool = defineTool({
   name: 'delete_entity',
-  description: 'Delete one entity of any resource that supports delete (layer 1). Reads it first and reports what was deleted.',
+  description: 'Delete one entity of any resource (raw); reports what was deleted.',
   input: { resource, id },
   handler: (args, ctx) => deleteEntity(ctx, 'delete', args),
 })
 
 export const deleteBulk = defineTool({
   name: 'delete_bulk',
-  description: `Delete up to ${BULK_LIMIT} entities of one resource by id (layer 1). Targetprocess bulk delete works by id only.`,
+  description: `Delete up to ${BULK_LIMIT} entities of one resource by id (raw).`,
   input: { resource, ids: ids(BULK_LIMIT) },
   handler: async (args, ctx) => {
     const catalog = await ctx.catalog()
@@ -215,9 +214,7 @@ export const deleteBulk = defineTool({
 
 export const deleteCollectionRemove = defineTool({
   name: 'delete_collection_remove',
-  description:
-    'Remove items from a removable collection of an entity by child id (layer 1), e.g. unlink test cases from a test plan. ' +
-    'To unassign a person prefer write_unassign.',
+  description: 'Remove items from a collection of any entity by child id (raw), e.g. unlink test cases from a test plan.',
   input: { resource, id, collection: collectionName, childIds: ids(BULK_LIMIT) },
   handler: (args, ctx) => removeFromCollection(ctx, 'delete', args),
 })
@@ -225,36 +222,36 @@ export const deleteCollectionRemove = defineTool({
 export const genericWriteTools = [writeCreate, writeUpdate, writeBulk, writeCollectionAdd]
 export const genericDeleteTools = [deleteEntityTool, deleteBulk, deleteCollectionRemove]
 
-const adminNote = ' Administration resources only (Project, Team, User, Process, Workflow, EntityState, Role, CustomField, ...). Requires an administrator token.'
+const adminNote = ' (Project, Team, User, Process, Workflow, Role, CustomField, ...); needs an administrator token.'
 
 export const adminTools = [
   defineTool({
     name: 'admin_create',
-    description: `Create a configuration/administration entity.${adminNote}`,
+    description: `Create an administration entity${adminNote}`,
     input: { resource, fields },
     handler: (args, ctx) => createEntity(ctx, 'admin', args),
   }),
   defineTool({
     name: 'admin_update',
-    description: `Update a configuration/administration entity.${adminNote}`,
+    description: `Update an administration entity${adminNote}`,
     input: { resource, id, fields },
     handler: (args, ctx) => updateEntity(ctx, 'admin', args),
   }),
   defineTool({
     name: 'admin_delete',
-    description: `Delete a configuration/administration entity.${adminNote}`,
+    description: `Delete an administration entity${adminNote}`,
     input: { resource, id },
     handler: (args, ctx) => deleteEntity(ctx, 'admin', args),
   }),
   defineTool({
     name: 'admin_collection_add',
-    description: `Add items to a collection of a configuration/administration entity (e.g. Team TeamMembers).${adminNote}`,
+    description: `Add items to a collection of an administration entity, e.g. Team TeamMembers${adminNote}`,
     input: { resource, id, collection: collectionName, items: collectionItems },
     handler: (args, ctx) => addToCollection(ctx, 'admin', args),
   }),
   defineTool({
     name: 'admin_collection_remove',
-    description: `Remove items from a collection of a configuration/administration entity.${adminNote}`,
+    description: `Remove items from a collection of an administration entity${adminNote}`,
     input: { resource, id, collection: collectionName, childIds: ids(BULK_LIMIT) },
     handler: (args, ctx) => removeFromCollection(ctx, 'admin', args),
   }),

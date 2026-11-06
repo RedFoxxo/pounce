@@ -12,7 +12,7 @@ Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
 registering one tool per endpoint.
 
-Status: version 1.0.1 (58 tools), verified end to end against the live
+Status: version 1.1.0 (58 tools in three toolsets), verified end to end against the live
 instance. Published to npm; users install it with `npx`, not from source. Build,
 test and release steps are in `DEVELOPMENT.md`. See "Status and remaining work"
 at the end.
@@ -34,7 +34,7 @@ any of these.
 | No way to list who is assigned to a card; TP silently assigned a default Product Owner on creation | A card read always includes its assignments. Creating a card clears TP's default assignments. |
 | `instanceof Error` compiled against a result union but was always false at runtime | No `instanceof Error` on API results. Use a discriminated `Result` and narrow on `ok`. |
 | Mutation tools had no shared name pattern, so the opencode allowlist had to enumerate each one and new tools were silently filtered out | Tools are grouped by tier prefix (`read_`, `write_`, `delete_`, `admin_`). One permission glob per tier. |
-| The domain rules lived in the user's local agent file, so a colleague cloning the repo didn't get them | Domain rules are enforced **in the server** and stated in tool descriptions. |
+| The domain rules lived in the user's local agent file, so a colleague cloning the repo didn't get them | Domain rules are enforced **in the server** and stated in tool and parameter descriptions. |
 | Tests mocked the shape the handler expected instead of the shape the client returned | Contract tests drive the real client through the handler with a stubbed `fetch`. |
 
 ## Stack
@@ -60,9 +60,18 @@ Versions are pinned exactly. Before every commit run `npm run typecheck`,
 | `TP_TOKEN` | yes | Access token. Sent as `access_token`; **redact it from every log line** |
 | `TP_DEFAULT_PROJECT_ID` | no | Fallback only when a call has no card/parent to inherit a project from |
 | `TP_DEFAULT_TEAM_ID` | no | Fallback team for creations; omitted from payloads when unset |
+| `POUNCE_TOOLSETS` | no | Tool groups to register, comma-separated: `cards`, `raw`, `admin` (default: all). Unknown names fail at startup |
 
 That is the complete list. Anything else must be resolved from the API.
 Fail at startup with a clear message if a required variable is missing.
+
+### Toolsets
+
+Every listed tool costs the client context on every request, so tools are
+registered per toolset (`src/tools/index.ts`): `cards` (layer 2 plus
+`read_history` and `write_attachment`, 34 tools), `raw` (the rest of layer 1,
+18), `admin` (the `admin_` tier, 6). A card tool's error may point to a raw
+tool; say "(raw toolset)" there, since it may not be registered.
 
 ## Architecture
 
@@ -301,9 +310,13 @@ takes base64 content only; pounce never reads local files for upload.
   The current token user is not an administrator, so `admin_` tools will get
   403 from Targetprocess regardless.
   Never put a mutation in `read_`.
-- Every id parameter is validated as `^\d+$`.
-- Tool descriptions state the domain rule that applies, e.g. `write_set_role_effort`
-  explains the rollup.
+- Every id parameter is validated as `^\d+$`; its published JSON schema stays
+  `{"type":"number"}` (numeric strings are converted first) because it repeats
+  in most tools.
+- Keep tool descriptions to one short sentence (about 120 characters): MCP
+  clients list them on every request and some cut them at 200. Rules that matter
+  before a call go in the parameter they concern (e.g. `exclusive` on
+  `write_assign`); side effects are reported in results.
 - Responses are compact JSON with ids and names. HTML descriptions are returned
   as text. Errors: `isError: true`, a one-line summary, then `status` and `body`.
 
