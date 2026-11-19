@@ -4,6 +4,38 @@ Versions follow [Semantic Versioning](https://semver.org/). The version lives in
 `package.json` and `src/version.ts` (a test keeps them equal) and is reported to
 MCP clients in the server handshake.
 
+## 1.2.0 — 2026-11-19
+
+- No requests at startup: the instance's API metadata is read lazily, one
+  resource at a time, the first time a tool needs it, instead of about 270
+  requests every time the server starts. Concurrent calls share one load. A
+  failed load is retried on the next call (the built-in snapshot stands in
+  meanwhile) instead of leaving the snapshot in use until restart.
+- Smaller tool list: pounce answers `tools/list` without the SDK's `$schema`,
+  `execution` and default-only schema keywords, marks only read tools
+  (`readOnlyHint`), and publishes name-or-id parameters as plain strings
+  (numbers are still accepted). The serialized list shrinks from 23,400 to
+  16,200 bytes for `cards` and from 41,500 to 29,800 for all 58 tools (about
+  4,050 and 7,450 tokens at 4 bytes per token).
+- `write_create_card` and `write_update_card` no longer echo the description
+  you just sent (it is still verified); `read_card` omits an empty
+  `customFields`.
+- `read_my_work` no longer loads the whole user list to look up the current
+  user a second time.
+- A `POUNCE_TOOLSETS` with no names (e.g. `,`) is now a startup error instead of
+  a server with no tools.
+- Converting a pathological description (many unclosed tags or comments) to
+  Markdown is linear instead of quadratic; a 60 KB one took seconds before.
+- A `__proto__` key in a Targetprocess payload or a custom field named
+  `__proto__` is kept as data.
+- The built-in catalog snapshot drops field descriptions and the `canGet` flag,
+  which nothing used: 1.38 MB → 0.92 MB in the package.
+- Dependencies: `@modelcontextprotocol/sdk` 1.32.2 and `zod` 4.6.7 (security
+  advisories), `vitest` 5.1.1; `npm audit` reports no vulnerabilities.
+- README: setup follows the current opencode config (`mcp.servers`,
+  `permissions` rules); the stale version line is gone. CI runs typecheck, tests
+  and build on `main`, `stable` and pull requests.
+
 ## 1.1.0 — 2026-11-06
 
 - Toolsets: `POUNCE_TOOLSETS` (`cards`, `raw`, `admin`, comma-separated) limits
