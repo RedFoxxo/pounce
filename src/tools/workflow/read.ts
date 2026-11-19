@@ -33,14 +33,17 @@ interface SearchArgs {
   state?: string | undefined
   project?: string | number | undefined
   assignee?: string | number | undefined
+  /** An already resolved assignee (read_my_work), so the user directory is not loaded again. */
+  assigneeId?: number | undefined
   tag?: string | undefined
   includeClosed?: boolean | undefined
   limit?: number | undefined
 }
 
 async function searchCards(ctx: ToolContext, args: SearchArgs, extra: Record<string, unknown> = {}): Promise<ToolOutput> {
-  const catalog = await ctx.catalog()
-  const lookup = catalog.resource(args.type ?? 'Assignable')
+  const type = args.type ?? 'Assignable'
+  const catalog = await ctx.catalog([type])
+  const lookup = catalog.resource(type)
   if (!lookup.ok) return invalid(lookup.message)
   const r = lookup.value
   const has = (m: string) => catalog.member(r, m) !== undefined
@@ -69,11 +72,15 @@ async function searchCards(ctx: ToolContext, args: SearchArgs, extra: Record<str
     if (!project.ok) return unresolved(project)
     where.push(`(Project.Id eq ${project.value.Id})`)
   }
-  if (args.assignee !== undefined) {
+  if (args.assignee !== undefined || args.assigneeId !== undefined) {
     if (!has('AssignedUser')) return invalid(`${r.name} cannot be filtered by assignee`)
-    const user = String(args.assignee).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.assignee, { allowInactive: true })
-    if (!user.ok) return unresolved(user)
-    where.push(`(AssignedUser.Id eq ${user.value.Id})`)
+    let assigneeId = args.assigneeId
+    if (assigneeId === undefined) {
+      const user = String(args.assignee).toLowerCase() === 'me' ? await ctx.directory.me() : await ctx.directory.user(args.assignee!, { allowInactive: true })
+      if (!user.ok) return unresolved(user)
+      assigneeId = user.value.Id
+    }
+    where.push(`(AssignedUser.Id eq ${assigneeId})`)
   }
   if (args.tag) {
     if (!has('TagObjects')) return invalid(`${r.name} has no tags`)
@@ -138,7 +145,7 @@ export const readMyWork = defineTool({
   handler: async (args, ctx) => {
     const me = await ctx.directory.me()
     if (!me.ok) return unresolved(me)
-    return searchCards(ctx, { ...args, assignee: me.value.Id, limit: args.limit ?? 100 }, { user: { id: me.value.Id, name: fullName(me.value) } })
+    return searchCards(ctx, { ...args, assigneeId: me.value.Id, limit: args.limit ?? 100 }, { user: { id: me.value.Id, name: fullName(me.value) } })
   },
 })
 
@@ -160,7 +167,7 @@ export const readStates = defineTool({
     let teamStates: unknown
     if (s.cardId !== undefined) {
       const card = await ctx.v1.get<Raw>(s.resource.path, s.cardId, {
-        include: `[Id,EntityState[Id,Name]${catalogHas(await ctx.catalog(), s.resource.name, 'AssignedTeams') ? ',AssignedTeams[Id,Team[Id,Name],EntityState[Id,Name]]' : ''}]`,
+        include: `[Id,EntityState[Id,Name]${(await ctx.catalog()).member(s.resource, 'AssignedTeams') ? ',AssignedTeams[Id,Team[Id,Name],EntityState[Id,Name]]' : ''}]`,
       })
       if (card.ok) {
         current = ref(card.data.EntityState)
@@ -193,11 +200,6 @@ export const readStates = defineTool({
     )
   },
 })
-
-function catalogHas(catalog: Awaited<ReturnType<ToolContext['catalog']>>, resource: string, member: string): boolean {
-  const r = catalog.find(resource)
-  return Boolean(r && catalog.member(r, member))
-}
 
 export const readPeople = defineTool({
   name: 'read_people',

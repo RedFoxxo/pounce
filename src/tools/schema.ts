@@ -14,11 +14,15 @@ export const id = z.preprocess(
 
 export const ids = (max: number) => z.array(id).min(1).max(max)
 
-/** A name, or a positive integer id. */
-export const nameOrId = z.union([
-  z.string().min(1),
-  z.number().refine((v) => Number.isSafeInteger(v) && v > 0, 'must be a positive integer id'),
-])
+/**
+ * A name, or an id. Numbers are converted to strings first, so the published
+ * JSON schema is a plain `{"type":"string"}` (it repeats in most tools); the
+ * resolvers read a digits-only string as an id.
+ */
+export const nameOrId = z.preprocess(
+  (v) => (typeof v === 'number' ? String(v) : v),
+  z.string().refine((s) => s.trim() !== '', 'must not be empty'),
+)
 
 export const resource = z
   .string()
@@ -29,7 +33,7 @@ export const resource = z
 export const include = z.string().min(1).optional()
 
 export const limit = (defaultValue: number, max: number) =>
-  z.number().int().min(1).max(max).optional().describe(`Default ${defaultValue}; a capped result says truncated: true`)
+  z.number().int().min(1).max(max).optional().describe(`Default ${defaultValue}`)
 
 /** Wraps a field list in the brackets Targetprocess expects. */
 export function bracket(list: string | undefined): string | undefined {

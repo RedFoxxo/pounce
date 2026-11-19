@@ -34,7 +34,7 @@ export async function cardInfo(ctx: ToolContext, id: number): Promise<Resolved<C
   }
   const typeName = r.data.EntityType?.Name
   if (!typeName) return { ok: false, reason: 'error', message: `Card ${id} has no entity type in the response.` }
-  const resource = (await ctx.catalog()).find(typeName)
+  const resource = (await ctx.catalog([typeName])).find(typeName)
   if (!resource?.available) {
     return { ok: false, reason: 'error', message: `Card ${id} is a ${typeName}, which the catalog does not describe.` }
   }

@@ -67,10 +67,8 @@ interface RawField {
   Name?: string
   Type?: string
   CanSet?: boolean
-  CanGet?: boolean
   IsRequired?: boolean
   IsDeprecated?: boolean
-  Description?: string
   CanAdd?: boolean
   CanRemove?: boolean
 }
@@ -119,8 +117,7 @@ function xmlFields(xml: string, section: string): RawField[] {
     const raw: RawField = {}
     if (a.Name !== undefined) raw.Name = a.Name
     if (a.Type !== undefined) raw.Type = a.Type
-    if (a.Description !== undefined) raw.Description = a.Description
-    const flags = { CanSet: a.CanSet, CanGet: a.CanGet, IsRequired: a.IsRequired, IsDeprecated: a.IsDeprecated, CanAdd: a.CanAdd, CanRemove: a.CanRemove }
+    const flags = { CanSet: a.CanSet, IsRequired: a.IsRequired, IsDeprecated: a.IsDeprecated, CanAdd: a.CanAdd, CanRemove: a.CanRemove }
     for (const [key, value] of Object.entries(flags)) {
       const b = xmlBool(value)
       if (b !== undefined) raw[key as 'CanSet'] = b
@@ -178,10 +175,8 @@ function field(raw: RawField): CatalogField {
     name: raw.Name ?? '',
     type: raw.Type ?? '',
     canSet: raw.CanSet === true,
-    canGet: raw.CanGet !== false,
     required: raw.IsRequired === true,
     deprecated: raw.IsDeprecated === true,
-    description: raw.Description ?? '',
   }
 }
 
@@ -211,11 +206,19 @@ export function parseMeta(raw: RawMeta, fallback: { name: string; path: string; 
   }
 }
 
-function unavailable(entry: IndexEntry): CatalogResource {
+/** A resource to read `/meta` for: an index entry, or a probed unlisted one. */
+export interface Target {
+  name: string
+  path: string
+  listed: boolean
+  description?: string
+}
+
+function unavailable(target: Target): CatalogResource {
   return {
-    name: entry.name,
-    path: entry.path,
-    description: entry.description,
+    name: target.name,
+    path: target.path,
+    description: target.description ?? '',
     listed: true,
     available: false,
     canCreate: false,
@@ -228,7 +231,7 @@ function unavailable(entry: IndexEntry): CatalogResource {
   }
 }
 
-async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length)
   let next = 0
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -242,6 +245,77 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promis
   return out
 }
 
+/** One retry for transient failures; a 404 means the resource does not exist here. */
+async function fetchMetaRetrying(v1: V1Client, path: string): Promise<Result<RawMeta>> {
+  const first = await fetchMeta(v1, path)
+  if (first.ok || first.status === 404) return first
+  return fetchMeta(v1, path)
+}
+
+/** `/api/v1/Index/meta`: every listed resource. */
+export async function loadIndex(v1: V1Client): Promise<Result<IndexEntry[]>> {
+  const index = await v1.getText('Index/meta')
+  if (!index.ok) return index
+  const entries = parseIndex(index.data)
+  if (entries.length === 0) return err(index.status, 'The resource index was empty or unreadable', index.data.slice(0, 2000))
+  return ok(entries, index.status)
+}
+
+/**
+ * Resources the index does not list but that answer `/meta` (56 on our
+ * instance): every `{X}Histories` and `{X}SimpleHistories`, and `GeneralConversions`.
+ */
+export function unlistedTargets(entries: IndexEntry[]): Target[] {
+  const listed = new Set(entries.map((e) => e.path.toLowerCase()))
+  return [...entries.flatMap((e) => [`${e.name}Histories`, `${e.name}SimpleHistories`]), 'GeneralConversions']
+    .filter((path) => !listed.has(path.toLowerCase()))
+    .map((path) => ({ name: path, path, listed: false }))
+}
+
+export interface LoadedResource {
+  /** Undefined when an unlisted resource does not exist here. */
+  resource: CatalogResource | undefined
+  /** False when `/meta` failed for a reason other than 404: the answer may change, so it is not kept. */
+  final: boolean
+  /** The resource came from the fallback (snapshot), not from the instance. */
+  fromFallback?: true
+}
+
+/**
+ * One resource's `/meta`. A 404 is final: a listed resource becomes
+ * unavailable (e.g. SickLeave), an unlisted one does not exist. Any other
+ * failure uses the fallback entry when there is one.
+ */
+export async function loadResource(
+  v1: V1Client,
+  target: Target,
+  options: { log?: Logger; fallback?: (path: string) => CatalogResource | undefined } = {},
+): Promise<LoadedResource> {
+  const meta = await fetchMetaRetrying(v1, target.path)
+  if (meta.ok && meta.data) return { resource: parseMeta(meta.data, target), final: true }
+  if (!meta.ok && meta.status === 404) return { resource: target.listed ? unavailable(target) : undefined, final: true }
+  const log = options.log ?? (() => {})
+  const reason = meta.ok ? 'empty' : meta.message
+  const known = options.fallback?.(target.path)
+  if (known) {
+    log(`catalog: ${target.path}/meta failed (${reason}); using the snapshot entry`)
+    return { resource: { ...known, listed: target.listed }, final: false, fromFallback: true }
+  }
+  log(`catalog: ${target.path}/meta failed (${reason}); ${target.listed ? 'marked unavailable' : 'skipped'}`)
+  return { resource: target.listed ? unavailable(target) : undefined, final: false }
+}
+
+/** The Targetprocess version `Context` reports, when readable. */
+export async function loadVersion(v1: V1Client): Promise<string | undefined> {
+  const context = await v1.getPath<{ Version?: string }>('Context', { include: '[Version]' })
+  return context.ok ? context.data?.Version : undefined
+}
+
+/** The entry of a path in a baseline catalog, when it is usable. */
+export function baselineEntry(baseline: CatalogData | undefined, path: string): CatalogResource | undefined {
+  return baseline?.resources.find((r) => r.path.toLowerCase() === path.toLowerCase() && r.available)
+}
+
 export interface LoadOptions {
   concurrency?: number
   log?: Logger
@@ -250,65 +324,25 @@ export interface LoadOptions {
   fallback?: () => CatalogData | undefined
 }
 
-/** One retry for transient failures; a 404 means the resource does not exist here. */
-async function fetchMetaRetrying(v1: V1Client, path: string): Promise<Result<RawMeta>> {
-  const first = await fetchMeta(v1, path)
-  if (first.ok || first.status === 404) return first
-  return fetchMeta(v1, path)
-}
-
 /**
- * Reads the catalog from the instance: the index, every listed resource's
- * `/meta`, plus the unlisted `{X}Histories`, `{X}SimpleHistories` and
- * `GeneralConversions`. One broken resource never fails the load.
+ * Reads the whole catalog from the instance (`npm run snapshot`): the index,
+ * every listed resource's `/meta`, plus the unlisted ones. One broken resource
+ * never fails the load; a failed index does.
  */
 export async function loadCatalog(v1: V1Client, options: LoadOptions = {}): Promise<Result<CatalogData>> {
-  const concurrency = options.concurrency ?? 8
-  const log = options.log ?? (() => {})
   let baseline: CatalogData | undefined | null = null
-  const fromBaseline = (path: string): CatalogResource | undefined => {
+  const fallback = (path: string) => {
     if (baseline === null) baseline = options.fallback?.()
-    return baseline?.resources.find((r) => r.path.toLowerCase() === path.toLowerCase() && r.available)
+    return baselineEntry(baseline, path)
   }
-
-  const index = await v1.getText('Index/meta')
+  const index = await loadIndex(v1)
   if (!index.ok) return index
-  const entries = parseIndex(index.data)
-  if (entries.length === 0) return err(index.status, 'The resource index was empty or unreadable', index.data.slice(0, 2000))
-
-  const listed = await mapLimit(entries, concurrency, async (entry) => {
-    const meta = await fetchMetaRetrying(v1, entry.path)
-    if (!meta.ok || !meta.data) {
-      const known = meta.ok || meta.status !== 404 ? fromBaseline(entry.path) : undefined
-      if (known) {
-        log(`catalog: ${entry.name} /meta failed (${meta.ok ? 'empty' : meta.message}); using the snapshot entry`)
-        return { ...known, listed: true }
-      }
-      log(`catalog: ${entry.name} is listed but its /meta failed (${meta.ok ? 'empty' : meta.message}); marked unavailable`)
-      return unavailable(entry)
-    }
-    return parseMeta(meta.data, { ...entry, listed: true })
-  })
-
-  const known = new Set(listed.map((r) => r.path.toLowerCase()))
-  const probes = [
-    ...entries.flatMap((e) => [`${e.name}Histories`, `${e.name}SimpleHistories`]),
-    'GeneralConversions',
-  ].filter((path) => !known.has(path.toLowerCase()))
-
-  const probed = await mapLimit(probes, concurrency, async (path) => {
-    const meta = await fetchMetaRetrying(v1, path)
-    if (meta.ok && meta.data) return parseMeta(meta.data, { name: path, path, listed: false })
-    if (!meta.ok && meta.status === 404) return undefined
-    const known = fromBaseline(path)
-    if (known) log(`catalog: ${path}/meta failed (${meta.ok ? 'empty' : meta.message}); using the snapshot entry`)
-    return known
-  })
-
-  const resources = [...listed, ...probed.filter((r): r is CatalogResource => r !== undefined)]
-  resources.sort((a, b) => a.name.localeCompare(b.name))
-  const context = await v1.getPath<{ Version?: string }>('Context', { include: '[Version]' })
-  const version = context.ok ? context.data?.Version : undefined
+  const targets = [...index.data.map((e) => ({ ...e, listed: true })), ...unlistedTargets(index.data)]
+  const loaded = await mapLimit(targets, options.concurrency ?? 8, (t) =>
+    loadResource(v1, t, { fallback, ...(options.log ? { log: options.log } : {}) }),
+  )
+  const resources = loaded.flatMap((l) => (l.resource ? [l.resource] : [])).sort((a, b) => a.name.localeCompare(b.name))
+  const version = await loadVersion(v1)
   return ok({
     instance: v1.http.baseUrl,
     ...(version ? { version } : {}),

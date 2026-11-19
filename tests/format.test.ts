@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { normalizeV1Dates } from '../src/format/dates.js'
 import { htmlToText, textToHtml } from '../src/format/html.js'
+import { customFields } from '../src/format/shape.js'
 
 describe('htmlToText', () => {
   it('turns blocks into lines and decodes entities', () => {
@@ -69,5 +71,27 @@ describe('htmlToText', () => {
     expect(textToHtml('<b>x</b>', 'text')).toBe('<div>&lt;b&gt;x&lt;/b&gt;</div>')
     expect(textToHtml('plain <b>x', 'html')).toBe('plain <b>x')
     expect(textToHtml('# not markdown by default')).toBe('<div># not markdown by default</div>')
+  })
+})
+
+describe('untrusted payload keys', () => {
+  it('normalizeV1Dates keeps a "__proto__" key as data', () => {
+    const out = normalizeV1Dates(JSON.parse('{"__proto__":{"x":"/Date(0)/"},"y":1}'))
+    expect(Object.getPrototypeOf(out)).toBe(Object.prototype)
+    expect(JSON.stringify(out)).toBe('{"__proto__":{"x":"1970-01-01T00:00:00.000Z"},"y":1}')
+  })
+
+  it('customFields keeps a field named "__proto__"', () => {
+    expect(JSON.stringify(customFields([{ Name: '__proto__', Value: 'x' }]))).toBe('{"__proto__":"x"}')
+  })
+})
+
+describe('htmlToText on malformed markup', () => {
+  it('runs in linear time on many unclosed tags', () => {
+    const started = Date.now()
+    htmlToText(`<p>${'<a'.repeat(30_000)}`)
+    htmlToText(`<p>${'<!--'.repeat(30_000)}`)
+    htmlToText(`<p>${'<a "'.repeat(30_000)}`)
+    expect(Date.now() - started).toBeLessThan(1000)
   })
 })

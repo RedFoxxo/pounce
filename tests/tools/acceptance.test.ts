@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { FakeTp } from '../helpers/fake-tp.js'
 import { harness, type Harness } from '../helpers/harness.js'
+import { serveMetadata } from '../helpers/metadata.js'
 
 /**
  * The #36410 batch in one pass, against the stateful fake: the story goes to
@@ -8,8 +9,13 @@ import { harness, type Harness } from '../helpers/harness.js'
  * and FrontEnd set; a task in Coded with Core Team, 1h Developer effort and
  * one assignee; a bug assigned to one person; default assignments removed;
  * the story's state change reported. The live twin is tests/live/acceptance.test.ts.
+ * It runs twice: with the snapshot catalog, and with the real lazily loaded
+ * one, which catches a tool that looks up a resource it never asked to load.
  */
-describe('acceptance: the #36410 batch', () => {
+describe.each([
+  ['snapshot catalog', false],
+  ['lazily loaded catalog', true],
+])('acceptance: the #36410 batch (%s)', (_label, liveCatalog) => {
   let tp: FakeTp
   let h: Harness
   const story = 36216
@@ -18,7 +24,7 @@ describe('acceptance: the #36410 batch', () => {
     tp = new FakeTp()
     tp.addCard({ Id: 36193, type: 'Feature', Name: 'Review 2025' })
     tp.addCard({ Id: story, type: 'UserStory', Name: 'Acceptance story', EntityState: { Id: 683, Name: 'Estimated' }, parent: { member: 'Feature', id: 36193 } }, { teams: [447] })
-    h = await harness({ stub: tp.stub })
+    h = await harness({ stub: liveCatalog ? serveMetadata(tp.stub) : tp.stub, liveCatalog })
   })
   afterAll(async () => {
     await h.close()
@@ -88,5 +94,13 @@ describe('acceptance: the #36410 batch', () => {
     const task = await h.call('write_create_card', { type: 'Task', parent: story, name: 'Second task' })
     const r = await h.call('write_set_state', { id: task.json.created.id, state: 'In Progress' })
     expect(r.json.parent).toMatchObject({ id: story, state: { before: 'Ready', after: 'In Progress', changed: true } })
+  })
+
+  it.runIf(liveCatalog)('loaded only the metadata the batch used, each once', () => {
+    const metadata = tp.stub.calls.filter((c) => c.path.endsWith('/meta')).map((c) => c.path)
+    expect(new Set(metadata).size).toBe(metadata.length)
+    // Index, the card types the batch touched, and nothing like the ~270 requests of a full load.
+    expect(metadata).toContain('/api/v1/Index/meta')
+    expect(metadata.length).toBeLessThan(10)
   })
 })

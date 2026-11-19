@@ -30,7 +30,7 @@ export async function parentSnapshot(ctx: ToolContext, raw: Raw): Promise<Parent
 
 /** State and role efforts of one specific card (the parent being watched). */
 export async function snapshotOf(ctx: ToolContext, parent: ParentRef): Promise<ParentRead> {
-  const catalog = await ctx.catalog()
+  const catalog = await ctx.catalog(parent.resourceType ? [parent.resourceType] : [])
   let resource = parent.resourceType ? catalog.find(parent.resourceType) : undefined
   if (!resource || resource.name === 'General' || resource.name === 'Assignable') {
     const info = await cardInfo(ctx, parent.id)

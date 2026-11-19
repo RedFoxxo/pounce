@@ -31,6 +31,10 @@ function toolsets(env: NodeJS.ProcessEnv, problems: string[]): Toolset[] | undef
   const raw = env.POUNCE_TOOLSETS?.trim()
   if (!raw) return undefined
   const names = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+  if (names.length === 0) {
+    problems.push(`POUNCE_TOOLSETS names no toolset (known: ${TOOLSETS.join(', ')}); unset it to register them all`)
+    return undefined
+  }
   const unknown = names.filter((n) => !TOOLSETS.some((t) => t === n))
   if (unknown.length > 0) {
     problems.push(`POUNCE_TOOLSETS has unknown toolsets: ${unknown.join(', ')} (known: ${TOOLSETS.join(', ')})`)

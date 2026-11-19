@@ -29,9 +29,8 @@ export function normalizeV1Dates<T>(value: T): T {
   if (typeof value === 'string') return v1DateToIso(value) as T
   if (Array.isArray(value)) return value.map((item) => normalizeV1Dates(item)) as T
   if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {}
-    for (const [key, item] of Object.entries(value)) out[key] = normalizeV1Dates(item)
-    return out as T
+    // fromEntries defines own properties: a "__proto__" key stays data instead of replacing the prototype.
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, normalizeV1Dates(item)])) as T
   }
   return value
 }

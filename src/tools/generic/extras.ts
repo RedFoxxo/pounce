@@ -104,7 +104,7 @@ export const readHistory = defineTool({
     limit: limit(200, 5000),
   },
   handler: async (args, ctx) => {
-    const catalog = await ctx.catalog()
+    const catalog = await ctx.catalog(args.resource ? [args.resource] : [])
     let r
     if (args.resource) {
       const lookup = catalog.resource(args.resource)
@@ -117,14 +117,14 @@ export const readHistory = defineTool({
     }
     const max = args.limit ?? 200
     if (args.full) {
-      const hist = catalog.find(`${r.name}Histories`)
+      const hist = (await ctx.catalog([`${r.name}Histories`])).find(`${r.name}Histories`)
       if (!hist?.available) return invalid(`${r.name} has no full history resource (${r.name}Histories) on this instance`)
       const res = await ctx.v1.list<Raw>(hist.path, { where: `(SourceEntityId eq ${args.id})`, orderByDesc: 'Date', limit: max })
       if (!res.ok) return failure(`Could not read the full history of ${r.name} ${args.id}`, res)
       return success({ resource: r.name, id: args.id, kind: 'full', count: res.data.items.length, truncated: res.data.truncated, entries: [...res.data.items].reverse().map(historyEntry) })
     }
     const inner = r.collections.some((c) => c.name === 'History')
-    const simple = catalog.find(`${r.name}SimpleHistories`)
+    const simple = inner ? undefined : (await ctx.catalog([`${r.name}SimpleHistories`])).find(`${r.name}SimpleHistories`)
     if (!inner && !simple?.available) return invalid(`${r.name} has no simple history; try full: true`)
     const res = inner
       ? await ctx.v1.list<Raw>(`${r.path}/${args.id}/History`, { orderByDesc: 'Date', limit: max })

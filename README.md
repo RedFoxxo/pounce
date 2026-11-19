@@ -2,10 +2,8 @@
 
 An MCP server for [Targetprocess](https://www.ibm.com/products/targetprocess): lets AI
 assistants read and manage your cards through the Targetprocess REST API.
-
-Version 1.0.1. See [CHANGELOG.md](CHANGELOG.md).
-
-## Why pounce
+Tested against Targetprocess 2609.2 (Pro edition). Releases are listed in
+[CHANGELOG.md](CHANGELOG.md).
 
 - **Full coverage.** If Targetprocess exposes an operation, pounce can perform it.
   Generic tools are driven by your instance's own API metadata, so custom entity
@@ -29,14 +27,14 @@ Nothing to download or build: your MCP client starts pounce with `npx`, which
 fetches [`@redfoxxo/pounce`](https://www.npmjs.com/package/@redfoxxo/pounce) from
 npm on first use. `@1` keeps you on 1.x releases.
 
-## Configuration
+## Setup
 
 pounce reads its settings from environment variables, which your MCP client
 passes to it:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `TP_BASE_URL` | yes | Your instance, e.g. `https://yourcompany.tpondemand.com` (no `/api/...`) |
+| `TP_BASE_URL` | yes | Your instance, e.g. `https://yourcompany.tpondemand.com` (no `/api/...`). `https` only, except for `localhost` |
 | `TP_TOKEN` | yes | Your access token. Never logged |
 | `TP_DEFAULT_PROJECT_ID` | no | Project for new cards that have no parent to inherit one from |
 | `TP_DEFAULT_TEAM_ID` | no | Team for new cards when none is given |
@@ -46,39 +44,12 @@ Keep the token out of config files: export it in your shell profile
 (`export TP_TOKEN=...`) and let the client pass it through, as the examples
 below do.
 
-## opencode
+pounce sends nothing to Targetprocess until a tool is called. Tools read your
+instance's API metadata as they need it: the first card read costs two or three
+extra read-only requests, kept for the rest of the session. If the metadata
+cannot be read, a built-in copy stands in and pounce tries again on the next call.
 
-Add the server and the four permission rules to `opencode.json` (global:
-`~/.config/opencode/opencode.json`):
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "mcp": {
-    "pounce": {
-      "type": "local",
-      "command": ["npx", "-y", "@redfoxxo/pounce@1"],
-      "enabled": true,
-      "environment": {
-        "TP_BASE_URL": "https://yourcompany.tpondemand.com",
-        "TP_TOKEN": "{env:TP_TOKEN}"
-      }
-    }
-  },
-  "permission": {
-    "pounce_read_*": "allow",
-    "pounce_write_*": "ask",
-    "pounce_delete_*": "ask",
-    "pounce_admin_*": "deny"
-  }
-}
-```
-
-opencode prefixes MCP tools with the server's key, so the key must be `pounce`
-for these rules to match (`read_card` becomes `pounce_read_card`). Restart
-opencode after changing the file; `opencode mcp list` shows whether it connected.
-
-## Claude Code
+### Claude Code
 
 Register the server once for all your projects. `${TP_TOKEN}` is read from your
 environment when the server starts, so the token is not stored in the config:
@@ -95,7 +66,7 @@ claude mcp add-json pounce --scope user '{
 }'
 ```
 
-Then add the four permission rules to `~/.claude/settings.json`:
+Then add the permission rules to `~/.claude/settings.json`:
 
 ```json
 {
@@ -111,7 +82,40 @@ Claude Code names MCP tools `mcp__<server>__<tool>`, so the server name must be
 `pounce` for these rules to match. Check the connection with
 `claude mcp get pounce`, or `/mcp` inside a session.
 
-## Other MCP clients
+### opencode
+
+Add the server and the permission rules to `opencode.json` (global:
+`~/.config/opencode/opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "pounce": {
+        "type": "local",
+        "command": ["npx", "-y", "@redfoxxo/pounce@1"],
+        "environment": {
+          "TP_BASE_URL": "https://yourcompany.tpondemand.com",
+          "TP_TOKEN": "{env:TP_TOKEN}"
+        }
+      }
+    }
+  },
+  "permissions": [
+    { "action": "pounce_read_*", "resource": "*", "effect": "allow" },
+    { "action": "pounce_write_*", "resource": "*", "effect": "ask" },
+    { "action": "pounce_delete_*", "resource": "*", "effect": "ask" },
+    { "action": "pounce_admin_*", "resource": "*", "effect": "deny" }
+  ]
+}
+```
+
+opencode names MCP tools `<server>_<tool>`, so the server name must be `pounce`
+for these rules to match (`read_card` becomes `pounce_read_card`). Restart
+opencode after changing the file; `opencode mcp list` shows whether it connected.
+
+### Other MCP clients
 
 Any client that starts local (stdio) servers works. Most accept an
 `mcpServers` block like this one (Claude Desktop, Cursor, ...):
@@ -133,10 +137,13 @@ Any client that starts local (stdio) servers works. Most accept an
 
 Then map the four tool-name prefixes below to the client's permission system.
 
-## Permission tiers
+## Tools
+
+### Permission tiers
 
 Every tool name starts with its tier, so one rule per tier covers all tools,
-including ones added in later versions:
+including ones added in later versions. Read tools are also marked read-only in
+the MCP tool annotations.
 
 | Prefix | What it does | Suggested rule |
 |---|---|---|
@@ -145,11 +152,12 @@ including ones added in later versions:
 | `delete_` | Deletes | ask |
 | `admin_` | Changes configuration (projects, teams, users, processes, workflows, ...); needs an administrator token | deny |
 
-## Tools
+### Toolsets
 
-58 tools in three toolsets. Every tool the client lists costs context on every
-request, so expose only the toolsets you use: `POUNCE_TOOLSETS=cards` gives 34
-tools, the day-to-day work on cards.
+58 tools in three toolsets. The client sends every listed tool to the model on
+every request, so expose only the toolsets you use: `POUNCE_TOOLSETS=cards`
+gives 34 tools, the day-to-day work on cards, for about 4,000 tokens; all 58
+cost about 7,500.
 
 **cards** (34): the workflow tools, plus card history and attachments.
 
@@ -192,6 +200,7 @@ and operation your instance reports.
 - State changes and new children report the parent card's state before and after.
 - New cards inherit the parent's project. If no project can be resolved, nothing
   is sent.
+- A card with child cards is deleted only with `withChildren: true`.
 - Names are resolved, never guessed: an ambiguous name returns every candidate
   with its id.
 - Time is logged where your process keeps it: standard Time entries, or, on
@@ -202,8 +211,9 @@ and operation your instance reports.
 - Every write is read back, and any value that did not persist is listed under
   `notPersisted`. If a multi-step write fails partway, the error says what was
   already done.
+- Attachments are uploaded from base64 content; pounce never reads local files.
 
-### Known limitations
+## Limitations
 
 - Downloading attachments is not supported. With an access token, Targetprocess
   returns an HTML page instead of the file.

@@ -47,7 +47,7 @@ export async function typeScope(
   if (args.project === undefined || !args.type) {
     return { ok: false, output: invalid('pass a card id, or both project and type (e.g. project "SBP", type "UserStory")') }
   }
-  const catalog = await ctx.catalog()
+  const catalog = await ctx.catalog([args.type])
   const resource = catalog.resource(args.type)
   if (!resource.ok) return { ok: false, output: invalid(resource.message) }
   const project = await ctx.directory.project(args.project)

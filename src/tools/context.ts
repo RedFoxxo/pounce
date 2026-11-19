@@ -1,6 +1,5 @@
 import type { Config } from '../config.js'
-import type { Catalog } from '../catalog/catalog.js'
-import { CatalogProvider } from '../catalog/catalog.js'
+import { CatalogProvider, type Catalog, type CatalogRequest } from '../catalog/catalog.js'
 import { HttpCore, type FetchLike } from '../http/core.js'
 import { V1Client } from '../http/v1.js'
 import { V2Client } from '../http/v2.js'
@@ -13,7 +12,12 @@ export interface ToolContext {
   http: HttpCore
   v1: V1Client
   v2: V2Client
-  catalog: () => Promise<Catalog>
+  /**
+   * The instance's metadata, read lazily: the returned catalog holds the
+   * requested resources (by name or path, or `all`) plus any loaded before.
+   * Ask for every resource the call looks up; `member()` on a resource needs nothing more.
+   */
+  catalog: (request?: CatalogRequest) => Promise<Catalog>
   /** Cached reference data for resolving names (users, roles, teams, projects, states, custom fields). */
   directory: Directory
   /**
@@ -27,8 +31,8 @@ export interface ToolContext {
 export interface ContextOptions {
   fetch?: FetchLike
   log?: Logger
-  /** Override the catalog (tests). Defaults to the live catalog with snapshot fallback. */
-  catalog?: () => Promise<Catalog>
+  /** Override the catalog (tests). Defaults to the lazily loaded live catalog with snapshot fallback. */
+  catalog?: (request?: CatalogRequest) => Promise<Catalog>
   settleDelaysMs?: number[]
 }
 
@@ -40,8 +44,7 @@ export function createContext(config: Config, options: ContextOptions = {}): Too
   let catalog = options.catalog
   if (!catalog) {
     const provider = new CatalogProvider(v1, { log })
-    provider.start()
-    catalog = () => provider.get()
+    catalog = (request) => provider.get(request)
   }
   return {
     config,

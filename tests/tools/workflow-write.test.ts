@@ -696,9 +696,11 @@ describe('1.0.1: Markdown and rename label', () => {
     expect(created.isError, created.text).toBe(false)
     expect((h.stub.writes[0]!.body as { Description: string }).Description).toBe('<!--markdown-->## Plan\n\n1. one\n2. two')
     expect(created.json.notPersisted).toBeUndefined()
-    expect(created.json.card.description).toBe('## Plan\n\n1. one\n2. two')
+    // Verified against the read-back (notPersisted above), but not echoed: the caller just sent it.
+    expect(created.json.card).not.toHaveProperty('description')
     const updated = await h.call('write_update_card', { id: 36216, description: '**bold**', format: 'markdown' })
     expect(updated.json.notPersisted).toBeUndefined()
+    expect(updated.json.now).not.toHaveProperty('description')
     expect(h.stub.writes.at(-1)!.body).toMatchObject({ Description: '<!--markdown-->**bold**' })
   })
 

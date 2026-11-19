@@ -38,9 +38,35 @@ export function prepareReference(value: unknown, label: string): Prepared<{ Id: 
 }
 
 /**
+ * Loads the resources of the collection items a payload nests, at every depth
+ * (e.g. `{"Tasks":{"Items":[...]}}` on a UserStory needs Task), so prepareBody
+ * can validate them. Items that only link an existing entity (`{"Id": n}`) need nothing.
+ */
+export async function catalogForBody(
+  load: (names: string[]) => Promise<Catalog>,
+  catalog: Catalog,
+  resource: CatalogResource,
+  body: Record<string, unknown>,
+): Promise<Catalog> {
+  let current = catalog
+  for (const [key, value] of Object.entries(body)) {
+    const collection = resource.collections.find((c) => c.name.toLowerCase() === key.toLowerCase() && c.name !== 'CustomFields')
+    if (!collection) continue
+    const raw = Array.isArray(value) ? value : isRecord(value) && Array.isArray(value.Items) ? value.Items : []
+    const nested = raw.filter((item): item is Record<string, unknown> => isRecord(item) && Object.keys(item).some((k) => k.toLowerCase() !== 'id'))
+    if (nested.length === 0) continue
+    current = await load([collection.type])
+    const child = current.find(collection.type)
+    if (!child?.available) continue
+    for (const item of nested) current = await catalogForBody(load, current, child, item)
+  }
+  return current
+}
+
+/**
  * Validates a create/update payload against the catalog and returns it with
  * canonical field names. Nested collection items are validated against the
- * collection's own resource when the catalog knows it.
+ * collection's own resource when the catalog holds it (see catalogForBody).
  */
 export function prepareBody(
   catalog: Catalog,

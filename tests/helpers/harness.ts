@@ -32,13 +32,14 @@ export interface Harness {
 
 /**
  * The real server, real clients and real handlers, connected to an MCP client
- * over an in-memory transport. Only `fetch` is stubbed.
+ * over an in-memory transport. Only `fetch` is stubbed. The catalog is the
+ * snapshot, unless `liveCatalog` asks for the real one read through `fetch`.
  */
-export async function harness(options: { stub?: FetchStub; config?: Partial<Config> } = {}): Promise<Harness> {
+export async function harness(options: { stub?: FetchStub; config?: Partial<Config>; liveCatalog?: boolean } = {}): Promise<Harness> {
   const stub = options.stub ?? new FetchStub()
   const config: Config = { baseUrl: BASE, token: TOKEN, ...options.config }
   const catalog = snapshot()
-  const ctx = createContext(config, { fetch: stub.fetch, catalog: async () => catalog, settleDelaysMs: [0] })
+  const ctx = createContext(config, { fetch: stub.fetch, settleDelaysMs: [0], ...(options.liveCatalog ? {} : { catalog: async () => catalog }) })
   const server = createServer(ctx)
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await server.connect(serverTransport)

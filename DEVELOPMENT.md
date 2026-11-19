@@ -16,7 +16,8 @@ npm run build
 ```
 
 The server entry point is `build/index.js` (MCP over stdio). To run a local build
-instead of the published package, point your client at it, e.g. in opencode:
+instead of the published package, point your client at it, e.g. in opencode
+(under `mcp.servers`):
 
 ```json
 "pounce": {
@@ -27,6 +28,11 @@ instead of the published package, point your client at it, e.g. in opencode:
 ```
 
 `.env.example` lists the variables. pounce does not read `.env` files itself.
+
+To see what a toolset costs the model, start the build with dummy values
+(`TP_BASE_URL=https://example.invalid TP_TOKEN=x`) and send `initialize` and
+`tools/list` over stdin: the `tools` array is what the client sends with every
+request.
 
 Inside this repository, `npx -y @redfoxxo/pounce@1` fails ("pounce: command not
 found"): npx resolves the package to the repo itself. Give the MCP client a
@@ -42,7 +48,9 @@ npm run build       # compile to build/
 npm run snapshot    # regenerate src/catalog/snapshot.json from TP_BASE_URL (read-only)
 ```
 
-Run `npm run typecheck`, `npm test` and `npm run build` before every commit.
+Run `npm run typecheck`, `npm test` and `npm run build` before every commit. CI
+(`.github/workflows/ci.yml`) runs the same three on every push to `main` and
+`stable` and on pull requests; it never runs the live tests.
 
 ## Live tests
 

@@ -5,7 +5,7 @@ import { failure, invalid, success } from '../respond.js'
 import { fields, id, ids, resource } from '../schema.js'
 import { defineTool, type ToolOutput } from '../types.js'
 import { resolveWritable, type WriteTier } from './policy.js'
-import { prepareBody, prepareItems, unpersisted } from './validate.js'
+import { catalogForBody, prepareBody, prepareItems, unpersisted } from './validate.js'
 
 type EditTier = Exclude<WriteTier, 'delete'>
 type RemoveTier = Exclude<WriteTier, 'write'>
@@ -19,10 +19,11 @@ export async function createEntity(
   tier: EditTier,
   args: { resource: string; fields: Record<string, unknown> },
 ): Promise<ToolOutput> {
-  const catalog = await ctx.catalog()
-  const lookup = resolveWritable(catalog, args.resource, 'create', tier)
+  const loaded = await ctx.catalog([args.resource])
+  const lookup = resolveWritable(loaded, args.resource, 'create', tier)
   if (!lookup.ok) return invalid(lookup.message)
   const r = lookup.value
+  const catalog = await catalogForBody(ctx.catalog, loaded, r, args.fields)
   const body = prepareBody(catalog, r, args.fields, 'create')
   if (!body.ok) return invalid(body.message)
   if (Object.keys(body.value).length === 0) return invalid(`no fields given for the new ${r.name}`)
@@ -38,10 +39,11 @@ export async function updateEntity(
   tier: EditTier,
   args: { resource: string; id: number; fields: Record<string, unknown> },
 ): Promise<ToolOutput> {
-  const catalog = await ctx.catalog()
-  const lookup = resolveWritable(catalog, args.resource, 'update', tier)
+  const loaded = await ctx.catalog([args.resource])
+  const lookup = resolveWritable(loaded, args.resource, 'update', tier)
   if (!lookup.ok) return invalid(lookup.message)
   const r = lookup.value
+  const catalog = await catalogForBody(ctx.catalog, loaded, r, args.fields)
   const body = prepareBody(catalog, r, args.fields, 'update')
   if (!body.ok) return invalid(body.message)
   if (Object.keys(body.value).length === 0) return invalid(`no fields given to update on ${r.name} ${args.id}`)
@@ -57,12 +59,13 @@ export async function addToCollection(
   tier: EditTier,
   args: { resource: string; id: number; collection: string; items: unknown[] },
 ): Promise<ToolOutput> {
-  const catalog = await ctx.catalog()
+  let catalog = await ctx.catalog([args.resource])
   const lookup = resolveWritable(catalog, args.resource, 'add', tier)
   if (!lookup.ok) return invalid(lookup.message)
   const r = lookup.value
   const coll = catalog.collection(r, args.collection)
   if (!coll.ok) return invalid(coll.message)
+  catalog = await catalogForBody(ctx.catalog, catalog, r, { [coll.value.name]: args.items })
   const items = prepareItems(catalog, r, coll.value, args.items, coll.value.name)
   if (!items.ok) return invalid(items.message)
 
@@ -76,7 +79,7 @@ export async function deleteEntity(
   tier: RemoveTier,
   args: { resource: string; id: number },
 ): Promise<ToolOutput> {
-  const catalog = await ctx.catalog()
+  const catalog = await ctx.catalog([args.resource])
   const lookup = resolveWritable(catalog, args.resource, 'delete', tier)
   if (!lookup.ok) return invalid(lookup.message)
   const r = lookup.value
@@ -94,7 +97,7 @@ export async function removeFromCollection(
   tier: RemoveTier,
   args: { resource: string; id: number; collection: string; childIds: number[] },
 ): Promise<ToolOutput> {
-  const catalog = await ctx.catalog()
+  const catalog = await ctx.catalog([args.resource])
   const lookup = resolveWritable(catalog, args.resource, 'remove', tier)
   if (!lookup.ok) return invalid(lookup.message)
   const r = lookup.value
@@ -147,7 +150,7 @@ export const writeBulk = defineTool({
     items: z.array(z.record(z.string(), z.unknown())).min(1).max(BULK_LIMIT),
   },
   handler: async (args, ctx) => {
-    const catalog = await ctx.catalog()
+    let catalog = await ctx.catalog([args.resource])
     const lookup = catalog.resource(args.resource)
     if (!lookup.ok) return invalid(lookup.message)
     const problems: string[] = []
@@ -171,6 +174,7 @@ export const writeBulk = defineTool({
         itemId = parsed.data
       }
       const rest = Object.fromEntries(Object.entries(item).filter(([k]) => k !== idKey))
+      catalog = await catalogForBody(ctx.catalog, catalog, check.value, rest)
       const body = prepareBody(catalog, check.value, rest, mode, `items[${i}]`)
       if (!body.ok) problems.push(body.message)
       else payload.push(itemId === undefined ? body.value : { Id: itemId, ...body.value })
@@ -202,7 +206,7 @@ export const deleteBulk = defineTool({
   description: `Delete up to ${BULK_LIMIT} entities of one resource by id (raw).`,
   input: { resource, ids: ids(BULK_LIMIT) },
   handler: async (args, ctx) => {
-    const catalog = await ctx.catalog()
+    const catalog = await ctx.catalog([args.resource])
     const lookup = resolveWritable(catalog, args.resource, 'delete', 'delete')
     if (!lookup.ok) return invalid(lookup.message)
     const r = lookup.value

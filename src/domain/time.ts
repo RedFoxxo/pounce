@@ -30,7 +30,7 @@ const CARD_TYPES = ['Task', 'Bug', 'UserStory', 'Request', 'Feature', 'Epic', 'P
 
 /** The TimeRecord backend if this instance has one, whatever the process. */
 export async function timeRecordBackend(ctx: ToolContext): Promise<{ ok: true; value: Extract<TimeBackend, { kind: 'TimeRecord' }> | undefined } | { ok: false; message: string; error: Err }> {
-  const resource = (await ctx.catalog()).find('TimeRecord')
+  const resource = (await ctx.catalog(['TimeRecord'])).find('TimeRecord')
   if (!resource?.available || !resource.canCreate) return { ok: true, value: undefined }
   const fields = await ctx.directory.entityCustomFields(resource.name)
   if (!fields.ok) return { ok: false, message: `Could not read the ${resource.name} custom fields`, error: fields }

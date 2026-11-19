@@ -93,7 +93,6 @@ export interface ParentLink {
 
 /** Walks up the parent chain (task → story → feature → epic → portfolio epic), nearest first. */
 export async function parentChain(ctx: ToolContext, raw: Raw, maxDepth = 5): Promise<ParentLink[]> {
-  const catalog = await ctx.catalog()
   const chain: ParentLink[] = []
   const seen = new Set<number>()
   let current: Raw | undefined = raw
@@ -101,6 +100,7 @@ export async function parentChain(ctx: ToolContext, raw: Raw, maxDepth = 5): Pro
     const parent = parentOf(current)
     if (!parent || seen.has(parent.id)) break
     seen.add(parent.id)
+    const catalog = await ctx.catalog(parent.resourceType ? [parent.resourceType] : [])
     let resource = parent.resourceType ? catalog.find(parent.resourceType) : undefined
     if (!resource || resource.name === 'General' || resource.name === 'Assignable') {
       const info = await cardInfo(ctx, parent.id)

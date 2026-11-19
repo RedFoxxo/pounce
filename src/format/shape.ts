@@ -2,7 +2,7 @@ import { htmlToText } from './html.js'
 
 type Raw = Record<string, unknown> | null | undefined
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
@@ -53,11 +53,13 @@ export function tags(value: unknown): string[] | undefined {
 /** `[{Name, Type, Value}]` → `{Name: Value}`. */
 export function customFields(value: unknown): Record<string, unknown> | undefined {
   if (!Array.isArray(value)) return undefined
-  const out: Record<string, unknown> = {}
-  for (const f of value) {
-    if (isRecord(f) && typeof f.Name === 'string') out[f.Name] = f.Type === 'RichText' ? text(f.Value) ?? null : f.Value ?? null
-  }
-  return out
+  // fromEntries: a field named "__proto__" stays a field. No fields: omitted rather than `{}`.
+  const out = Object.fromEntries(
+    value
+      .filter((f): f is Record<string, unknown> => isRecord(f) && typeof f.Name === 'string')
+      .map((f) => [f.Name as string, f.Type === 'RichText' ? text(f.Value) ?? null : f.Value ?? null]),
+  )
+  return Object.keys(out).length ? out : undefined
 }
 
 export function assignment(raw: Raw) {

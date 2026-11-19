@@ -93,7 +93,8 @@ function parseHtml(html: string): HtmlNode[] {
   const stack: Element[] = [root]
   const top = () => stack[stack.length - 1] as Element
   let skipping: string | undefined
-  for (const m of html.matchAll(/<!--[\s\S]*?-->|<\/?([A-Za-z][A-Za-z0-9]*)\b((?:[^>"']|"[^"]*"|'[^']*')*)>|[^<]+|</g)) {
+  // Linear on malformed input: a tag cannot contain an unquoted "<", and an unclosed comment runs to the end (as in browsers).
+  for (const m of html.matchAll(/<!--[\s\S]*?(?:-->|$)|<\/?([A-Za-z][A-Za-z0-9]*)\b((?:[^<>"']|"[^"]*"|'[^']*')*)>|[^<]+|</g)) {
     const token = m[0]
     const tagName = m[1]?.toLowerCase()
     if (skipping) {

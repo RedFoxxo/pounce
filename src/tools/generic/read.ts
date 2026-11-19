@@ -46,7 +46,7 @@ export const readMeta = defineTool({
   description: "Describe this instance's resources, or one resource's fields and collections. Use it before other raw tools.",
   input: { resource: resource.optional() },
   handler: async ({ resource: name }, ctx) => {
-    const catalog = await ctx.catalog()
+    const catalog = await ctx.catalog(name ? [name] : 'all')
     const header = {
       source: catalog.source,
       instance: catalog.data.instance,
@@ -95,7 +95,7 @@ export const readGet = defineTool({
     append: queryShape.append,
   },
   handler: async (args, ctx) => {
-    const lookup = (await ctx.catalog()).resource(args.resource)
+    const lookup = (await ctx.catalog([args.resource])).resource(args.resource)
     if (!lookup.ok) return invalid(lookup.message)
     const r = lookup.value
     const result = await ctx.v1.get(r.path, args.id, {
@@ -115,7 +115,7 @@ export const readQuery = defineTool({
   description: 'Query any resource with where/include/orderBy (raw), fully paged. Use include to keep results small.',
   input: { resource, ...queryShape },
   handler: async (args, ctx) => {
-    const lookup = (await ctx.catalog()).resource(args.resource)
+    const lookup = (await ctx.catalog([args.resource])).resource(args.resource)
     if (!lookup.ok) return invalid(lookup.message)
     const r = lookup.value
     const result = await ctx.v1.list(r.path, {
@@ -142,7 +142,7 @@ export const readCollection = defineTool({
     ...queryShape,
   },
   handler: async (args, ctx) => {
-    const catalog = await ctx.catalog()
+    const catalog = await ctx.catalog([args.resource])
     const lookup = catalog.resource(args.resource)
     if (!lookup.ok) return invalid(lookup.message)
     const r = lookup.value

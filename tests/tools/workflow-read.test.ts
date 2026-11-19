@@ -164,6 +164,8 @@ describe('read_search / read_my_work', () => {
     const r = await h.call('read_my_work', { type: 'Task' })
     expect(r.json.user).toEqual({ id: 2286, name: 'Foxxo Vulpes' })
     expect(h.stub.find('GET', '/api/v1/Tasks')[0]!.query.get('where')).toBe("(AssignedUser.Id eq 2286) and (EntityState.IsFinal eq 'false')")
+    // The logged user's id is known: the user directory is not loaded to resolve it again.
+    expect(h.stub.find('GET', '/api/v1/Users')).toHaveLength(0)
   })
 })
 

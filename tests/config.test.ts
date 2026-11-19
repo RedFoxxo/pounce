@@ -55,4 +55,8 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...base, POUNCE_TOOLSETS: '' }).toolsets).toBeUndefined()
     expect(() => loadConfig({ ...base, POUNCE_TOOLSETS: 'cards,layer1' })).toThrow(/unknown toolsets: layer1/)
   })
+
+  it('rejects a POUNCE_TOOLSETS that names no toolset instead of registering no tools', () => {
+    expect(() => loadConfig({ ...base, POUNCE_TOOLSETS: ' , ' })).toThrow(/POUNCE_TOOLSETS names no toolset/)
+  })
 })

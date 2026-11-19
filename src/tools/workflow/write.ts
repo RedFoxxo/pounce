@@ -14,7 +14,7 @@ import { cardInfo } from '../../resolve/card.js'
 import { fullName, type TpRole, type TpUser } from '../../resolve/directory.js'
 import { match, type Resolved } from '../../resolve/match.js'
 import type { ToolContext } from '../context.js'
-import { prepareBody, unpersisted } from '../generic/validate.js'
+import { catalogForBody, prepareBody, unpersisted } from '../generic/validate.js'
 import { isAdminResource } from '../generic/policy.js'
 import { failure, invalid, success } from '../respond.js'
 import { id, nameOrId } from '../schema.js'
@@ -444,7 +444,7 @@ const refOrNull = z.union([id, z.null()])
 const richFormat = z
   .enum(['markdown', 'html', 'text'])
   .optional()
-  .describe('markdown, html (sent as-is) or text (plain lines). Default: plain text unless it is HTML, so Markdown needs format: markdown.')
+  .describe('Default: text, or html when it is HTML; Markdown needs markdown')
 const tag = z.string().trim().min(1).refine((t) => !t.includes(','), 'a tag cannot contain a comma (Targetprocess separates tags with commas)')
 
 /** Fields that have their own argument or tool, because a domain rule applies to them. */
@@ -514,7 +514,7 @@ export const writeCreateCard = defineTool({
     fields: z.record(z.string(), z.unknown()).optional().describe('Any other settable fields as Targetprocess JSON, validated against the catalog'),
   },
   handler: async (args, ctx) => {
-    const catalog = await ctx.catalog()
+    const catalog = await ctx.catalog([args.type])
     const lookup = catalog.resource(args.type)
     if (!lookup.ok) return invalid(lookup.message)
     const resource = lookup.value
@@ -610,7 +610,7 @@ export const writeCreateCard = defineTool({
     if (args.fields && Object.keys(args.fields).length) {
       const reserved = reservedFields(args.fields)
       if (reserved) return invalid(reserved)
-      const extra = prepareBody(catalog, resource, args.fields, 'create')
+      const extra = prepareBody(await catalogForBody(ctx.catalog, catalog, resource, args.fields), resource, args.fields, 'create')
       if (!extra.ok) return invalid(extra.message)
       extraFields = extra.value
       Object.assign(body, extra.value)
@@ -709,7 +709,8 @@ export const writeCreateCard = defineTool({
     const shapedInfo = { ...info, project: ref(raw.Project) ? { id: ref(raw.Project)!.id, name: ref(raw.Project)!.name ?? '' } : info.project }
     return success({
       created: { id: newId, type: resource.name, name: args.name },
-      card: shapeCard(shapedInfo, raw),
+      // Without the description: the caller just sent it, and verifyWritten reports a difference.
+      card: { ...shapeCard(shapedInfo, raw), description: undefined },
       removedDefaultAssignments: removedDefaults,
       ...(efforts.length ? { totalsNote: TOTALS_NOTE } : {}),
       ...(parentAfter || parentBefore ? { parent: parentChange(parentBefore, parentAfter) } : {}),
@@ -780,7 +781,7 @@ export const writeUpdateCard = defineTool({
     if (args.fields && Object.keys(args.fields).length) {
       const reserved = reservedFields(args.fields)
       if (reserved) return invalid(`${reserved}\n(write_update in the raw toolset is the escape hatch for an explicit override)`)
-      const extra = prepareBody(catalog, card.info.resource, args.fields, 'update')
+      const extra = prepareBody(await catalogForBody(ctx.catalog, catalog, card.info.resource, args.fields), card.info.resource, args.fields, 'update')
       if (!extra.ok) return invalid(extra.message)
       extraFields = extra.value
       Object.assign(body, extra.value)
@@ -798,7 +799,7 @@ export const writeUpdateCard = defineTool({
       ...(after.Name !== card.info.name ? { renamedFrom: card.info.name } : {}),
       updated: Object.keys(body),
       ...(removedTags.length ? { removedTags } : {}),
-      now: shapeCard({ ...card.info, name: typeof after.Name === 'string' ? after.Name : card.info.name }, after),
+      now: { ...shapeCard({ ...card.info, name: typeof after.Name === 'string' ? after.Name : card.info.name }, after), description: undefined },
       ...verdict(checked),
     })
   },

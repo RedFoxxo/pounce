@@ -54,16 +54,12 @@ Versions are pinned exactly. Before every commit run `npm run typecheck`,
 
 ## Configuration
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `TP_BASE_URL` | yes | Instance root, e.g. `https://mamami.tpondemand.com` (no `/api/...` suffix) |
-| `TP_TOKEN` | yes | Access token. Sent as `access_token`; **redact it from every log line** |
-| `TP_DEFAULT_PROJECT_ID` | no | Fallback only when a call has no card/parent to inherit a project from |
-| `TP_DEFAULT_TEAM_ID` | no | Fallback team for creations; omitted from payloads when unset |
-| `POUNCE_TOOLSETS` | no | Tool groups to register, comma-separated: `cards`, `raw`, `admin` (default: all). Unknown names fail at startup |
-
-That is the complete list. Anything else must be resolved from the API.
-Fail at startup with a clear message if a required variable is missing.
+The variables (`TP_BASE_URL`, `TP_TOKEN`, `TP_DEFAULT_PROJECT_ID`,
+`TP_DEFAULT_TEAM_ID`, `POUNCE_TOOLSETS`) are documented for users in README.md
+"Setup"; `src/config.ts` validates them. That is the complete list: anything
+else must be resolved from the API. Fail at startup with one message listing
+every problem. The token is sent as `access_token`; **redact it from every log
+line and every tool result**.
 
 ### Toolsets
 
@@ -78,7 +74,7 @@ tool; say "(raw toolset)" there, since it may not be registered.
 ```
 src/
   index.ts             bootstrap: config, context, stdio transport
-  server.ts            tool registration; tier check and MCP annotations
+  server.ts            tool registration; tier check, MCP annotations, compact tools/list
   config.ts            env loading + validation
   log.ts, version.ts
   http/
@@ -89,7 +85,7 @@ src/
     redact.ts          token redaction
   catalog/
     loader.ts          index scan, JSON/XML /meta, history probing
-    catalog.ts         lookups, suggestions, live-with-snapshot-fallback provider
+    catalog.ts         lookups, suggestions, lazy provider with snapshot fallback
     snapshot.json      committed baseline catalog (regenerate with npm run snapshot)
     snapshot-cli.ts
   resolve/             name → id: directory (users, roles, teams, projects, states,
@@ -138,10 +134,16 @@ tests/                 contract tests (tools/), helpers (fetch stub, MCP harness
 
 ### Layer 1 — generic, catalog-driven tools (full coverage)
 
-The catalog is read from the user's own instance at startup
-(`/api/v1/Index/meta`, then `/api/v1/{Resource}/meta` for each resource), cached
-in memory, and falls back to `snapshot.json` if metadata is unavailable. Each
-entry records the resource name, plural path, `CanCreate` / `CanUpdate` /
+The catalog is read from the user's own instance **lazily**: nothing at
+startup, then `/api/v1/Index/meta` and each `/api/v1/{Resource}/meta` the first
+time a tool asks for that resource (`ctx.catalog(['UserStory'])`; `'all'` for
+`read_meta` without a resource). Loads are single-flight and kept for the life
+of the process; a failed one is not kept, so the next call retries, and
+`snapshot.json` stands in meanwhile. A tool must request every resource it
+looks up (`find`/`resource`); `member()` on a resource it already holds needs
+nothing more, and `catalogForBody` loads the types nested in a payload. The
+acceptance test runs once on the real lazy catalog to catch a missed request.
+Each entry records the resource name, plural path, `CanCreate` / `CanUpdate` /
 `CanDelete`, every field with `CanSet` / `IsRequired` / type, and every
 collection with `CanAdd` / `CanRemove`.
 
@@ -151,12 +153,12 @@ Four confirmed quirks the loader must handle:
   key `"ResourceMetadataDescription"` once per resource, so `JSON.parse` keeps
   only the last one. Scan the raw text for every occurrence instead.
 - **The index is incomplete.** History resources and `GeneralConversions` answer
-  `/meta` but are not listed (56 on our instance). For every resource `X`, also
-  probe `XHistories/meta` and `XSimpleHistories/meta`, and always probe
-  `GeneralConversions/meta`.
+  `/meta` but are not listed (56 on our instance). `{X}Histories`,
+  `{X}SimpleHistories` (for every listed `X`) and `GeneralConversions` are
+  probed when asked for, and all of them by a full load.
 - **An index entry can be broken.** `SickLeave` is listed on our instance but its
   `/meta` and its collection both return 404. Record such entries as
-  unavailable and keep loading; never fail startup over one resource.
+  unavailable; never fail over one resource.
 - **Some `/meta` is XML only.** `Context/meta` answers XML even with
   `format=json` and `Accept: application/json` (**live**); the loader parses both.
 
@@ -312,13 +314,23 @@ takes base64 content only; pounce never reads local files for upload.
   Never put a mutation in `read_`.
 - Every id parameter is validated as `^\d+$`; its published JSON schema stays
   `{"type":"number"}` (numeric strings are converted first) because it repeats
-  in most tools.
+  in most tools. Name-or-id parameters (`nameOrId`) publish `{"type":"string"}`
+  for the same reason: numbers are converted to strings, and the resolvers read
+  a digits-only string as an id.
+- `server.ts` answers `tools/list` itself, without the SDK's `$schema`,
+  `execution` and default-only keywords, and annotates only reads
+  (`readOnlyHint`); the other tiers keep the MCP defaults (destructive, open
+  world). Measure `tools/list` (DEVELOPMENT.md) after changing descriptions or
+  schemas.
 - Keep tool descriptions to one short sentence (about 120 characters): MCP
   clients list them on every request and some cut them at 200. Rules that matter
   before a call go in the parameter they concern (e.g. `exclusive` on
   `write_assign`); side effects are reported in results.
-- Responses are compact JSON with ids and names. HTML descriptions are returned
-  as text. Errors: `isError: true`, a one-line summary, then `status` and `body`.
+- Responses are compact JSON with ids and names; workflow results omit empty and
+  null fields (raw tools return Targetprocess's payload as is). HTML descriptions
+  are returned as text; write results do not echo a description the caller just
+  sent (it is verified instead). Errors: `isError: true`, a one-line summary,
+  then `status` and `body`.
 
 ## Testing
 

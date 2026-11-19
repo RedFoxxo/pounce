@@ -3,10 +3,8 @@ export interface CatalogField {
   /** Targetprocess type name, e.g. `String`, `Int32`, `UserStory`. */
   type: string
   canSet: boolean
-  canGet: boolean
   required: boolean
   deprecated: boolean
-  description: string
 }
 
 export interface CatalogCollection extends CatalogField {

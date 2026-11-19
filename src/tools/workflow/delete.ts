@@ -37,7 +37,7 @@ export const deleteCard = defineTool({
     const card = await readCardRaw(ctx, args.id)
     if (!card.ok) return card.error ? failure(card.message, card.error) : invalid(card.message)
     const { info, raw } = card.value
-    const allowed = resolveWritable(await ctx.catalog(), info.resource.name, 'delete', 'delete')
+    const allowed = resolveWritable(await ctx.catalog([info.resource.name]), info.resource.name, 'delete', 'delete')
     if (!allowed.ok) return invalid(allowed.message)
     const shaped = shapeCard(info, raw)
     const children = Object.fromEntries(
