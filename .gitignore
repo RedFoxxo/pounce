@@ -1,4 +1,6 @@
 target/
 .env
+# Local tool caches (e.g. a search index's downloaded model).
+.cache/
 .codeindex/
 coverage/
