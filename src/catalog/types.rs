@@ -74,13 +74,6 @@ impl<'a> Member<'a> {
         }
     }
 
-    pub fn type_name(self) -> &'a str {
-        match self {
-            Member::Value(f) | Member::Reference(f) => &f.type_name,
-            Member::Collection(c) => &c.type_name,
-        }
-    }
-
     pub fn can_set(self) -> bool {
         match self {
             Member::Value(f) | Member::Reference(f) => f.can_set,

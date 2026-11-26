@@ -212,18 +212,11 @@ fn start(settings: &Value, live_catalog: bool, now_ms: i64) -> Server {
     }
 }
 
+/// The answer must be the same text: what the model reads, key order and number
+/// formatting included.
 fn result_matches(want: &Value, got: &tools::ToolResult) -> bool {
-    let text = want["text"].as_str().unwrap_or_default();
-    if want["isError"].as_bool().unwrap_or(false) != got.is_error {
-        return false;
-    }
-    match (
-        serde_json::from_str::<Value>(text),
-        serde_json::from_str::<Value>(&got.text),
-    ) {
-        (Ok(a), Ok(b)) => same(&a, &b),
-        _ => text == got.text,
-    }
+    want["isError"].as_bool().unwrap_or(false) == got.is_error
+        && want["text"].as_str().unwrap_or_default() == got.text
 }
 
 /// Replays one transcript file; `Err` lists every difference.

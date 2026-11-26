@@ -19,7 +19,8 @@ pub struct Config {
 }
 
 impl Config {
-    /// A configuration for tests and tools that need no environment.
+    /// A configuration for tests that need no environment.
+    #[cfg(test)]
     pub fn new(base_url: &str, token: &str) -> Self {
         Config {
             base_url: base_url.to_string(),

@@ -47,11 +47,6 @@ impl V2 {
         self.query_at("/api/v2", entity, options).await
     }
 
-    /// Full history v2: `/api/history/v2/{Entity}`.
-    pub async fn history(&self, entity: &str, options: &QueryOptions) -> Res<ListResult> {
-        self.query_at("/api/history/v2", entity, options).await
-    }
-
     async fn query_at(&self, base: &str, entity: &str, options: &QueryOptions) -> Res<ListResult> {
         let limit = options.limit.unwrap_or(PAGE).max(1);
         let mut items: Vec<Value> = Vec::new();

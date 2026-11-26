@@ -26,6 +26,7 @@ impl Clock {
     }
 
     /// A clock that never moves: `now_ms`, and `today` as that instant's UTC date.
+    #[cfg(test)]
     pub fn fixed(now_ms: i64) -> Self {
         let today = chrono::DateTime::from_timestamp_millis(now_ms)
             .map(|d| d.format("%Y-%m-%d").to_string())
@@ -49,7 +50,6 @@ pub struct Ctx {
     /// Pauses (ms) before re-checking a new card for assignments Targetprocess adds
     /// after creation (live: a default Product Owner appeared after the first check).
     pub settle_delays_ms: Vec<u64>,
-    pub log: Logger,
     pub clock: Clock,
 }
 
@@ -81,7 +81,6 @@ pub fn context(config: Config, options: Options) -> Ctx {
         catalog,
         config,
         settle_delays_ms: options.settle_delays_ms,
-        log: options.log,
         clock: options.clock,
     }
 }

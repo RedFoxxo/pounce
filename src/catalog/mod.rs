@@ -328,6 +328,7 @@ pub struct Provider(Inner);
 
 enum Inner {
     /// Tests: always this catalog, no requests.
+    #[cfg(test)]
     Fixed(Arc<Catalog>),
     Live(Box<Live>),
 }
@@ -357,6 +358,7 @@ impl Provider {
         })))
     }
 
+    #[cfg(test)]
     pub fn fixed(catalog: Arc<Catalog>) -> Self {
         Provider(Inner::Fixed(catalog))
     }
@@ -364,6 +366,7 @@ impl Provider {
     /// A catalog holding at least the requested resources (and every one loaded before).
     pub async fn get(&self, request: &Request) -> Arc<Catalog> {
         match &self.0 {
+            #[cfg(test)]
             Inner::Fixed(catalog) => catalog.clone(),
             Inner::Live(live) => live.get(request).await,
         }

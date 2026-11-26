@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 
 use super::v1_ref;
-use crate::format::shape::{items, person};
+use crate::format::shape::person;
 use crate::http::Res;
 use crate::http::v1::{ListOptions, ReadOptions, WriteOptions};
 use crate::resolve::directory::V1Ref;
@@ -40,11 +40,6 @@ fn row(a: &Value) -> Option<AssignmentRow> {
     };
     let role = v1_ref(&a["Role"])?;
     Some(AssignmentRow { id, user, role })
-}
-
-/// The complete assignment rows of a raw card's `Assignments` collection.
-pub fn assignment_rows(raw: &Value) -> Vec<AssignmentRow> {
-    items(&raw["Assignments"]).iter().filter_map(row).collect()
 }
 
 /// Every assignment of a card, read fresh from `/Assignments` (fully paged).

@@ -166,3 +166,68 @@ pub async fn call(ctx: &Ctx, tools: &[Tool], name: &str, args: &Value) -> ToolRe
             .unwrap_or_else(|early| early),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `tools/list` is a contract with the Mamami plugin (approval rules, skills) and
+    /// with every model prompt: a change is deliberate and updates the golden file.
+    #[test]
+    fn lists_the_released_tools() {
+        let golden: Value =
+            serde_json::from_str(include_str!("../../tests/golden/tools.json")).unwrap();
+        let listed = list(&tools_for(&TOOLSETS));
+        let (want, got) = (
+            golden.as_array().unwrap(),
+            listed["tools"].as_array().unwrap(),
+        );
+        let names = |tools: &[Value]| -> Vec<String> {
+            tools
+                .iter()
+                .map(|t| t["name"].as_str().unwrap().to_string())
+                .collect()
+        };
+        assert_eq!(names(got), names(want));
+        for (g, w) in got.iter().zip(want) {
+            assert!(
+                crate::replay::same(g, w),
+                "{} differs:\n got: {g}\nwant: {w}",
+                w["name"]
+            );
+        }
+    }
+
+    #[test]
+    fn exposes_only_the_configured_toolsets() {
+        let cards = tools_for(&[Toolset::Cards]);
+        assert!(cards.iter().all(|t| tier_of(t.name) != Some(Tier::Admin)));
+        assert!(cards.iter().any(|t| t.name == "read_card"));
+        assert!(cards.iter().all(|t| t.name != "read_query"));
+        let admin = tools_for(&[Toolset::Admin]);
+        assert!(admin.iter().all(|t| tier_of(t.name) == Some(Tier::Admin)));
+    }
+
+    #[test]
+    fn every_tool_has_a_tier_prefix_no_pounce_prefix_and_a_unique_name() {
+        let tools = tools_for(&TOOLSETS);
+        for (i, t) in tools.iter().enumerate() {
+            assert!(tier_of(t.name).is_some(), "{}", t.name);
+            assert!(!t.name.starts_with("pounce_"), "{}", t.name);
+            assert!(tools[..i].iter().all(|u| u.name != t.name), "{}", t.name);
+        }
+    }
+
+    #[test]
+    fn only_reads_are_annotated_read_only() {
+        for t in list(&tools_for(&TOOLSETS))["tools"].as_array().unwrap() {
+            let read = t["name"].as_str().unwrap().starts_with("read_");
+            assert_eq!(
+                t["annotations"]["readOnlyHint"] == true,
+                read,
+                "{}",
+                t["name"]
+            );
+        }
+    }
+}

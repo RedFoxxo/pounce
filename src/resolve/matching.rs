@@ -1,6 +1,6 @@
 //! Name or id → one entry of a list, never guessing (port of `match.ts`).
 
-use serde_json::{Map, Value, json};
+use serde_json::{Map, Value};
 use unicode_normalization::UnicodeNormalization;
 
 use crate::http::TpErr;
@@ -14,17 +14,6 @@ pub struct Candidate {
     pub extra: Map<String, Value>,
 }
 
-impl Candidate {
-    /// `{id, name, ...extra}`.
-    pub fn to_json(&self) -> Value {
-        let mut out = Map::new();
-        out.insert("id".into(), json!(self.id));
-        out.insert("name".into(), json!(self.name));
-        out.extend(self.extra.iter().map(|(k, v)| (k.clone(), v.clone())));
-        Value::Object(out)
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Reason {
     /// Nothing matched.
@@ -33,16 +22,6 @@ pub enum Reason {
     Ambiguous,
     /// The lookup itself failed.
     Error,
-}
-
-impl Reason {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Reason::NotFound => "none",
-            Reason::Ambiguous => "ambiguous",
-            Reason::Error => "error",
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
