@@ -1,0 +1,41 @@
+[package]
+# On crates.io as pounce-mcp (`pounce` is another crate there); the program is still `pounce`.
+name = "pounce-mcp"
+# The one place the version lives: `pounce --version` and `serverInfo.version` read it.
+version = "2.0.0"
+edition = "2024"
+rust-version = "1.85"
+description = "MCP server for Targetprocess: read and manage cards by name, with your team rules enforced and every write verified"
+license = "MIT"
+repository = "https://github.com/RedFoxxo/pounce"
+readme = "README.md"
+# crates.io: at most 5 keywords, each under 20 characters.
+keywords = ["mcp", "mcp-server", "targetprocess", "apptio", "ai"]
+categories = ["command-line-utilities", "web-programming::http-client"]
+include = ["/src/**", "/tests/golden/tools*.json", "/Cargo.toml", "/Cargo.lock", "/README.md", "/CHANGELOG.md", "/LICENSE"]
+
+[[bin]]
+name = "pounce"
+path = "src/main.rs"
+
+[dependencies]
+base64 = "0.23"
+# Today's date in the local time zone, for time records logged without a date.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+percent-encoding = "2.3"
+regex = "1.13"
+# ring instead of reqwest's default aws-lc-rs: it builds for every release target with
+# nothing but a C compiler (no cmake or NASM), including static musl Linux builds.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "multipart", "system-proxy"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+# preserve_order: answers keep Targetprocess's and pounce's key order, as JSON.stringify does.
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt", "macros", "io-std", "io-util", "sync", "time"] }
+# Name matching ignores accents (NFKD, then the combining marks dropped).
+unicode-normalization = "0.1"
+url = "2.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true

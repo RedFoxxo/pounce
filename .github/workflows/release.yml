@@ -1,0 +1,171 @@
+name: release
+
+# Pushing a tag vX.Y.Z publishes pounce X.Y.Z: the checks run on the tagged
+# commit, each binary is built on its own system, and a GitHub Release gets the
+# binaries, SHA256SUMS and the version's changelog section. Asset names are a
+# contract with installers (the Mamami plugin downloads them): never rename them.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: check
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version $version in Cargo.toml"
+            exit 1
+          fi
+          if ! grep -q "^## $version — " CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no '## $version — <date>' section"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  checks:
+    needs: version
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    # `needs` lists every job whose outputs a step reads: only direct dependencies are visible.
+    needs: [version, checks]
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # Static musl builds: they run on any Linux, whatever its C library.
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, asset: pounce-linux-x64 }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-24.04-arm, asset: pounce-linux-arm64 }
+          - { target: x86_64-apple-darwin, os: macos-latest, asset: pounce-macos-x64 }
+          - { target: aarch64-apple-darwin, os: macos-latest, asset: pounce-macos-arm64 }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, asset: pounce-windows-x64.exe }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install stable --profile minimal --target ${{ matrix.target }} && rustup default stable
+      - if: contains(matrix.target, 'musl')
+        run: command -v clang || (sudo apt-get update && sudo apt-get install -y clang)
+      # ring's C code for musl: the runner's clang, with rustc's own musl to link against.
+      - run: cargo build --release --locked --target ${{ matrix.target }}
+        env:
+          CC_x86_64_unknown_linux_musl: clang
+          CC_aarch64_unknown_linux_musl: clang
+      - name: Name the binary and check that it runs
+        run: |
+          bin=target/${{ matrix.target }}/release/pounce
+          [ -f "$bin.exe" ] && bin="$bin.exe"
+          mkdir dist && cp "$bin" "dist/${{ matrix.asset }}"
+          # x64 macOS builds on an arm64 runner; Rosetta runs it.
+          "dist/${{ matrix.asset }}" --version | tee version.txt
+          grep -qx "pounce ${{ needs.version.outputs.version }}" version.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/${{ matrix.asset }}
+          if-no-files-found: error
+
+  # pounce.mcpb, the MCP Bundle Claude Desktop installs with one click; on macOS for lipo.
+  bundle:
+    needs: [version, build]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - run: sh mcpb/build.sh "${{ needs.version.outputs.version }}" dist pounce.mcpb
+      # As Claude Desktop extracts it on macOS: no execute bits, quarantine flag set.
+      - run: sh mcpb/smoke.sh pounce.mcpb
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pounce.mcpb
+          path: pounce.mcpb
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build, bundle]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history, so moving stable below is an ordinary fast-forward push.
+          fetch-depth: 0
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Start the bundle on Linux
+        run: sh mcpb/smoke.sh dist/pounce.mcpb
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          cd dist
+          sha256sum pounce-* pounce.mcpb > SHA256SUMS
+          cat SHA256SUMS
+          # The changelog section of this version, without its heading.
+          awk -v v="$VERSION" '$0 ~ "^## " v " " {on=1; next} /^## / {on=0} on' ../CHANGELOG.md > notes.md
+          gh release create "v$VERSION" --title "pounce $VERSION" --notes-file notes.md pounce-* pounce.mcpb SHA256SUMS
+      # stable is the default branch, which GitHub and Glama show: it follows
+      # releases. A plain push, so it fails instead of rewriting stable if the
+      # tag is not ahead of it.
+      - name: Move stable to this release
+        run: git push origin "HEAD:refs/heads/stable"
+
+  # The MCP Registry listing (server.json) for this release. Signs in with this
+  # workflow's GitHub identity: no token, and only io.github.RedFoxxo/* names.
+  registry:
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.16
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: pounce.mcpb
+          path: dist
+      - uses: sigstore/cosign-installer@881c63bd87e38389154debd8331404ce7ca8a3ab # v4.1.4
+      - name: Download and verify mcp-publisher
+        run: |
+          set -euo pipefail
+          archive=mcp-publisher_linux_amd64.tar.gz
+          base=https://github.com/modelcontextprotocol/registry/releases/download/$MCP_PUBLISHER_VERSION
+          curl -fsSL -o "$archive" "$base/$archive"
+          curl -fsSL -o "$archive.sigstore.json" "$base/$archive.sigstore.json"
+          cosign verify-blob --bundle "$archive.sigstore.json" \
+            --certificate-identity "https://github.com/modelcontextprotocol/registry/.github/workflows/release.yml@refs/tags/$MCP_PUBLISHER_VERSION" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com "$archive"
+          tar xzf "$archive" mcp-publisher
+      - name: Fill in this release
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          sha=$(sha256sum dist/pounce.mcpb | cut -d' ' -f1)
+          url="https://github.com/RedFoxxo/pounce/releases/download/v$VERSION/pounce.mcpb"
+          jq --arg v "$VERSION" --arg url "$url" --arg sha "$sha" \
+            '.version = $v | .packages[0].identifier = $url | .packages[0].fileSha256 = $sha' server.json > server.tmp
+          mv server.tmp server.json
+          cat server.json
+      - run: ./mcp-publisher validate
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish

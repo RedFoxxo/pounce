@@ -1,0 +1,94 @@
+{
+  "manifest_version": "0.3",
+  "name": "pounce",
+  "display_name": "pounce (Targetprocess)",
+  "version": "0.0.0",
+  "description": "Read and manage Targetprocess cards by name, with your team's rules applied and every write verified.",
+  "long_description": "pounce lets AI assistants read and manage your cards through the [Targetprocess](https://www.ibm.com/products/targetprocess) REST API. Generic tools are driven by your instance's own API metadata, so custom entity types are covered; workflow tools accept names instead of ids (\"move #36400 to Coded\", \"assign Foxxo as Developer\") and apply the team's rules: effort is booked per role, default assignees are cleared on creation, and side effects on parent cards are reported.",
+  "author": {
+    "name": "RedFoxxo",
+    "url": "https://github.com/RedFoxxo"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RedFoxxo/pounce.git"
+  },
+  "homepage": "https://github.com/RedFoxxo/pounce",
+  "documentation": "https://github.com/RedFoxxo/pounce#readme",
+  "support": "https://github.com/RedFoxxo/pounce/issues",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/pounce",
+    "mcp_config": {
+      "command": "/bin/sh",
+      "args": [
+        "${__dirname}/server/launch.sh"
+      ],
+      "env": {
+        "TP_BASE_URL": "${user_config.base_url}",
+        "TP_TOKEN": "${user_config.token}",
+        "TP_DEFAULT_PROJECT_ID": "${user_config.default_project_id}",
+        "TP_DEFAULT_TEAM_ID": "${user_config.default_team_id}",
+        "POUNCE_TOOLSETS": "${user_config.toolsets}"
+      },
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/pounce.exe",
+          "args": []
+        }
+      }
+    }
+  },
+  "tools": [],
+  "keywords": [
+    "targetprocess",
+    "apptio",
+    "project-management",
+    "agile",
+    "cards"
+  ],
+  "license": "MIT",
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ]
+  },
+  "user_config": {
+    "base_url": {
+      "type": "string",
+      "title": "Targetprocess URL",
+      "description": "Your instance, e.g. https://yourcompany.tpondemand.com (https only, except localhost)",
+      "required": true
+    },
+    "token": {
+      "type": "string",
+      "title": "Access token",
+      "description": "Your Targetprocess access token",
+      "sensitive": true,
+      "required": true
+    },
+    "default_project_id": {
+      "type": "string",
+      "title": "Default project id",
+      "description": "Numeric id of the project for new cards that have no parent to inherit one from",
+      "required": false,
+      "default": ""
+    },
+    "default_team_id": {
+      "type": "string",
+      "title": "Default team id",
+      "description": "Numeric id of the team for new cards when none is given",
+      "required": false,
+      "default": ""
+    },
+    "toolsets": {
+      "type": "string",
+      "title": "Toolsets",
+      "description": "Tool groups to expose, comma-separated: cards, raw, admin (empty: all three)",
+      "required": false,
+      "default": ""
+    }
+  }
+}

@@ -5,6 +5,8 @@ on:
     branches: [main, stable]
   pull_request:
   workflow_dispatch:
+  # The release workflow runs these checks on the tagged commit before it builds anything.
+  workflow_call:
 
 permissions:
   contents: read
@@ -13,13 +15,66 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      # Stubbed fetch only; the live tests (npm run test:live) need a real instance and never run here.
-      - run: npm test
-      - run: npm run build
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      # The unit tests and every tool against recorded Targetprocess exchanges (tests/golden/transcripts).
+      - run: cargo test --locked
+
+  # The unit tests on the other systems the release ships for.
+  other-systems:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - run: cargo test --locked
+
+  # install.sh and install.ps1 against the latest release, twice: the second run is an update.
+  # The default folders and the POUNCE_* settings are a contract with the Mamami installer.
+  install-scripts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      # Skipped until the first Rust release exists: until then the latest release is a
+      # TypeScript one without pounce-linux-x64, and the scripts would have nothing to download.
+      # Remove this step and the `if`s on it once v2.0.0 is out.
+      - id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2> /dev/null | grep -qx pounce-linux-x64; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No release with pounce-linux-x64 yet: the install scripts are not tested."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: runner.os == 'Linux'
+        run: shellcheck install.sh
+      - if: runner.os != 'Windows' && steps.release.outputs.ready == 'true'
+        run: |
+          sh install.sh
+          sh install.sh
+          # Some runner images already have ~/.local/bin on PATH; then the profile is left alone.
+          case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) grep -qF "$HOME/.local/bin" "$HOME/.profile" ;; esac
+          "$HOME/.local/bin/pounce" --version | grep -E '^pounce [0-9]+\.[0-9]+\.[0-9]+$'
+      # Windows PowerShell 5.1, as `irm … | iex` runs on a stock Windows.
+      - if: runner.os == 'Windows' && steps.release.outputs.ready == 'true'
+        shell: powershell
+        run: |
+          Get-Content -Raw install.ps1 | Invoke-Expression
+          Get-Content -Raw install.ps1 | Invoke-Expression
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\pounce'
+          if (-not ([Environment]::GetEnvironmentVariable('Path', 'User') -split ';' -contains $dir)) { throw 'not on the user PATH' }
+          $version = & (Join-Path $dir 'pounce.exe') --version
+          if ($version -notmatch '^pounce \d+\.\d+\.\d+$') { throw "unexpected: $version" }
+          $version

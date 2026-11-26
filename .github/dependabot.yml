@@ -1,0 +1,22 @@
+# Monthly update pull requests, one per ecosystem: the Rust crates and the
+# workflow actions. They go to main, where all work lands: stable, the default
+# branch, only moves forward with a release, so a merge there would stop the
+# next release from moving it.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    target-branch: main
+    schedule:
+      interval: monthly
+    groups:
+      cargo:
+        patterns: ["*"]
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: main
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

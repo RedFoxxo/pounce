@@ -1,0 +1,46 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.RedFoxxo/pounce",
+  "title": "pounce (Targetprocess)",
+  "description": "Read and manage Targetprocess cards by name, with team rules applied.",
+  "repository": {
+    "url": "https://github.com/RedFoxxo/pounce",
+    "source": "github"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/RedFoxxo/pounce/releases/download/v0.0.0/pounce.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "TP_BASE_URL",
+          "description": "Your instance, e.g. https://yourcompany.tpondemand.com (https only, except localhost)",
+          "isRequired": true
+        },
+        {
+          "name": "TP_TOKEN",
+          "description": "Your Targetprocess access token",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "TP_DEFAULT_PROJECT_ID",
+          "description": "Numeric id of the project for new cards that have no parent to inherit one from"
+        },
+        {
+          "name": "TP_DEFAULT_TEAM_ID",
+          "description": "Numeric id of the team for new cards when none is given"
+        },
+        {
+          "name": "POUNCE_TOOLSETS",
+          "description": "Tool groups to expose, comma-separated: cards, raw, admin (empty: all three)"
+        }
+      ]
+    }
+  ]
+}
