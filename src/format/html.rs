@@ -871,13 +871,19 @@ mod tests {
         );
     }
 
+    /// Four times the input must take far less than sixteen times as long (quadratic).
+    /// A ratio, not a time limit: unoptimized test builds on CI runners are slow.
     #[test]
     fn runs_in_linear_time_on_many_unclosed_tags() {
-        let started = std::time::Instant::now();
-        t(&format!("<p>{}", "<a".repeat(30_000)));
-        t(&format!("<p>{}", "<!--".repeat(30_000)));
-        t(&format!("<p>{}", "<a \"".repeat(30_000)));
-        assert!(started.elapsed().as_millis() < 1000);
+        let run = |n: usize| {
+            let started = std::time::Instant::now();
+            t(&format!("<p>{}", "<a".repeat(n)));
+            t(&format!("<p>{}", "<!--".repeat(n)));
+            t(&format!("<p>{}", "<a \"".repeat(n)));
+            started.elapsed().as_secs_f64()
+        };
+        let (small, large) = (run(10_000), run(40_000));
+        assert!(large < small * 8.0, "10k: {small:.3}s, 40k: {large:.3}s");
     }
 
     /// format.test.ts's "untrusted payload keys" case for `customFields` (shape.rs is not this port's file).

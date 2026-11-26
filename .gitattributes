@@ -1,0 +1,3 @@
+# LF everywhere, also on Windows checkouts: the embedded snapshot and the golden
+# files are compared byte for byte, and pounce embeds snapshot.json as committed.
+* text=auto eol=lf
