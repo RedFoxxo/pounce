@@ -1,8 +1,35 @@
 # Changelog
 
 Versions follow [Semantic Versioning](https://semver.org/). The version lives in
-`package.json` and `src/version.ts` (a test keeps them equal) and is reported to
-MCP clients in the server handshake.
+`Cargo.toml` and is reported to MCP clients in the server handshake.
+
+## 2.0.0 — 2026-11-26
+
+The same server, rewritten in Rust: one executable without Node.js, about 7 MB
+of memory when idle and 17 MB with the API metadata loaded, instead of about
+79 MB plus `npx`'s own process (about 54 MB).
+
+- **Breaking: installed as a program, not through npm.** Each release on GitHub
+  has binaries for Linux (x64, arm64; static, any distribution), macOS (Apple
+  silicon, Intel) and Windows (x64), with `SHA256SUMS`. Clients start `pounce`
+  instead of `npx -y @redfoxxo/pounce@1`; the npm package stays at 1.2.0. See
+  "Install" in the README.
+- **Install scripts:** `curl -fsSL …/install.sh | sh` (Linux, macOS) and
+  `irm …/install.ps1 | iex` (Windows) install or update pounce and add it to
+  your PATH.
+- **Claude Desktop:** each release has `pounce.mcpb`, a one-click bundle that
+  asks for the instance URL, the access token and the optional settings.
+- **MCP Registry:** listed as `io.github.RedFoxxo/pounce`, updated by every
+  release.
+- From source: `cargo install pounce-mcp` (the name `pounce` is taken on
+  crates.io; the program is still `pounce`). A Dockerfile builds a container
+  image.
+- Tools, parameters, descriptions, answers and environment variables are
+  unchanged: `tools/list` is the 1.2.0 list, and the tool calls recorded from
+  the 1.2.0 tests send the same requests and give the same answers.
+- `pounce --version` and `pounce --help`.
+- Starts in milliseconds and needs no network until the first tool call (`npx`
+  checked the registry on every start).
 
 ## 1.2.0 — 2026-11-19
 

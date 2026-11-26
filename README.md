@@ -1,9 +1,18 @@
 # pounce 🦊
 
+[![CI](https://github.com/RedFoxxo/pounce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RedFoxxo/pounce/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/RedFoxxo/pounce)](https://github.com/RedFoxxo/pounce/releases/latest)
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-io.github.RedFoxxo%2Fpounce-blue)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.RedFoxxo/pounce)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)](#install)
+[![License: MIT](https://img.shields.io/github/license/RedFoxxo/pounce)](LICENSE)
+
 An MCP server for [Targetprocess](https://www.ibm.com/products/targetprocess): lets AI
 assistants read and manage your cards through the Targetprocess REST API.
 Tested against Targetprocess 2609.2 (Pro edition). Releases are listed in
 [CHANGELOG.md](CHANGELOG.md).
+
+pounce is one small executable: no Node.js or other runtime, about 7 MB of
+memory when idle and about 17 MB once it has read the instance's API metadata.
 
 - **Full coverage.** If Targetprocess exposes an operation, pounce can perform it.
   Generic tools are driven by your instance's own API metadata, so custom entity
@@ -19,13 +28,75 @@ Tested against Targetprocess 2609.2 (Pro edition). Releases are listed in
 
 ## Requirements
 
-- Node.js 22.12 or newer (`npx` comes with it)
+- Linux (x64 or arm64), macOS (Apple silicon or Intel) or Windows (x64)
 - A Targetprocess access token: in Targetprocess, open your profile →
   **Access Tokens** → create one
 
-Nothing to download or build: your MCP client starts pounce with `npx`, which
-fetches [`@redfoxxo/pounce`](https://www.npmjs.com/package/@redfoxxo/pounce) from
-npm on first use. `@1` keeps you on 1.x releases.
+## Install
+
+Linux and macOS:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/RedFoxxo/pounce/main/install.sh | sh
+```
+
+Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/RedFoxxo/pounce/main/install.ps1 | iex
+```
+
+The script downloads the file for your system from the
+[latest release](https://github.com/RedFoxxo/pounce/releases/latest), checks
+it against the release's `SHA256SUMS`, and installs it as `pounce` in
+`~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\pounce`). If that folder is
+not on your `PATH` yet, it adds it: to `~/.profile` (and `~/.zprofile` on
+macOS), or to your user `PATH` on Windows. Log out and back in on Linux and
+macOS, or open a new terminal on Windows, then check with `pounce --version`.
+
+Run the same line again to update. Settings go to the script: `POUNCE_VERSION`
+installs a given release, `POUNCE_INSTALL_DIR` uses another folder, and
+`POUNCE_NO_MODIFY_PATH=1` leaves your `PATH` alone, e.g.
+`curl -fsSL …/install.sh | POUNCE_VERSION=2.0.0 sh`, or in PowerShell
+`$env:POUNCE_VERSION = '2.0.0'` before `irm … | iex`.
+
+### Claude Desktop
+
+Download `pounce.mcpb` from the
+[latest release](https://github.com/RedFoxxo/pounce/releases/latest) and open
+it, or drag it into **Settings → Extensions**. Claude Desktop asks for your
+Targetprocess URL and access token (kept in the system's secure storage), plus
+the optional default project, default team and toolsets, and runs pounce from
+the bundle; nothing else to install. pounce is also listed in the
+[MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.RedFoxxo/pounce)
+as `io.github.RedFoxxo/pounce`.
+
+### By hand
+
+Download the file for your system from the latest release into a folder on your
+`PATH`, rename it to `pounce` (`pounce.exe` on Windows), and on Linux and macOS
+make it executable (`chmod +x pounce`). On macOS, a file downloaded with a
+browser needs `xattr -d com.apple.quarantine pounce` once before it starts.
+
+| System | File |
+|---|---|
+| Linux x64 | `pounce-linux-x64` |
+| Linux arm64 | `pounce-linux-arm64` |
+| macOS, Apple silicon | `pounce-macos-arm64` |
+| macOS, Intel | `pounce-macos-x64` |
+| Windows x64, also Windows on ARM | `pounce-windows-x64.exe` |
+
+To build from source instead (needs Rust): `cargo install pounce-mcp --locked`
+(the crate is `pounce-mcp`; the program is `pounce`), or from the repository:
+`cargo install --git https://github.com/RedFoxxo/pounce --tag v2.0.0 --locked`.
+Or as a container image: `docker build -t pounce .` in a clone, then start it
+with `docker run -i --rm -e TP_BASE_URL -e TP_TOKEN pounce`.
+
+**Coming from 1.x?** pounce 1.x ran through `npx` from the npm package
+`@redfoxxo/pounce`, which gets no new versions. Install pounce as above, then
+change your client's `"command": "npx", "args": ["-y", "@redfoxxo/pounce@1"]`
+to `"command": "pounce"` (opencode: `"command": ["pounce"]`). Tools, settings
+and permission rules stay the same.
 
 ## Setup
 
@@ -57,8 +128,7 @@ environment when the server starts, so the token is not stored in the config:
 ```sh
 claude mcp add-json pounce --scope user '{
   "type": "stdio",
-  "command": "npx",
-  "args": ["-y", "@redfoxxo/pounce@1"],
+  "command": "pounce",
   "env": {
     "TP_BASE_URL": "https://yourcompany.tpondemand.com",
     "TP_TOKEN": "${TP_TOKEN}"
@@ -94,7 +164,7 @@ Add the server and the permission rules to `opencode.json` (global:
     "servers": {
       "pounce": {
         "type": "local",
-        "command": ["npx", "-y", "@redfoxxo/pounce@1"],
+        "command": ["pounce"],
         "environment": {
           "TP_BASE_URL": "https://yourcompany.tpondemand.com",
           "TP_TOKEN": "{env:TP_TOKEN}"
@@ -124,8 +194,7 @@ Any client that starts local (stdio) servers works. Most accept an
 {
   "mcpServers": {
     "pounce": {
-      "command": "npx",
-      "args": ["-y", "@redfoxxo/pounce@1"],
+      "command": "pounce",
       "env": {
         "TP_BASE_URL": "https://yourcompany.tpondemand.com",
         "TP_TOKEN": "your-access-token"
@@ -135,6 +204,9 @@ Any client that starts local (stdio) servers works. Most accept an
 }
 ```
 
+If the client can't find `pounce` (some desktop apps don't see your shell's
+`PATH`), give the full path to the file instead, e.g.
+`"C:\\Users\\you\\AppData\\Local\\Programs\\pounce\\pounce.exe"` on Windows.
 Then map the four tool-name prefixes below to the client's permission system.
 
 ## Tools

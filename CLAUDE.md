@@ -12,10 +12,11 @@ Goal: **full coverage.** If Targetprocess exposes an operation, pounce can
 perform it. Coverage is achieved in two layers (see "Architecture"), not by
 registering one tool per endpoint.
 
-Status: version 1.1.0 (58 tools in three toolsets), verified end to end against the live
-instance. Published to npm; users install it with `npx`, not from source. Build,
-test and release steps are in `DEVELOPMENT.md`. See "Status and remaining work"
-at the end.
+Status: version 2.0.0 (58 tools in three toolsets), the Rust rewrite of the
+TypeScript 1.2.0 with the same tools and answers. Released as one executable
+(GitHub Release binaries, install scripts, Claude Desktop bundle, crates.io
+`pounce-mcp`); clients run `pounce`. Build, test and release steps are in
+`DEVELOPMENT.md`. See "Status and remaining work" at the end.
 
 ## Why a rewrite — lessons from the old server
 
@@ -39,24 +40,24 @@ any of these.
 
 ## Stack
 
-- TypeScript (strict), ESM, Node `>=22.12` (Node 20 is end-of-life, and vitest 5
-  requires 22.12)
-- `@modelcontextprotocol/sdk` with the stdio transport
-- `zod` for tool input schemas
-- `vitest` for tests
-- No other runtime dependencies. HTML ↔ text for descriptions is a small
-  in-house converter (`src/format/html.ts`); add a library only for a concrete
-  need it cannot meet.
+Rust (edition 2024, stable, 1.85 or newer): `tokio` (current-thread runtime),
+`reqwest` with rustls and ring, `serde_json` (with `preserve_order`, so answers
+keep the key order the TypeScript build had), `regex`, `chrono` (today's date for
+time records), `base64`, `percent-encoding`, `url`, `unicode-normalization`
+(accent-insensitive name matching). No MCP SDK: `src/mcp.rs` speaks the protocol
+by hand. HTML ↔ text for descriptions is a small in-house converter
+(`src/format/html.rs`); add a crate only for a concrete need it cannot meet.
 
-Versions are pinned exactly. Before every commit run `npm run typecheck`,
-`npm test` and `npm run build`; `npm run snapshot` regenerates
-`src/catalog/snapshot.json` from `TP_BASE_URL` (read-only).
+The version lives only in `Cargo.toml`. Before every commit run
+`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and
+`cargo test`; `pounce --snapshot` regenerates `src/catalog/snapshot.json` from
+`TP_BASE_URL` (read-only).
 
 ## Configuration
 
 The variables (`TP_BASE_URL`, `TP_TOKEN`, `TP_DEFAULT_PROJECT_ID`,
 `TP_DEFAULT_TEAM_ID`, `POUNCE_TOOLSETS`) are documented for users in README.md
-"Setup"; `src/config.ts` validates them. That is the complete list: anything
+"Setup"; `src/config.rs` validates them. That is the complete list: anything
 else must be resolved from the API. Fail at startup with one message listing
 every problem. The token is sent as `access_token`; **redact it from every log
 line and every tool result**.
@@ -64,7 +65,7 @@ line and every tool result**.
 ### Toolsets
 
 Every listed tool costs the client context on every request, so tools are
-registered per toolset (`src/tools/index.ts`): `cards` (layer 2 plus
+registered per toolset (`src/tools/mod.rs`): `cards` (layer 2 plus
 `read_history` and `write_attachment`, 34 tools), `raw` (the rest of layer 1,
 18), `admin` (the `admin_` tier, 6). A card tool's error may point to a raw
 tool; say "(raw toolset)" there, since it may not be registered.
@@ -73,35 +74,38 @@ tool; say "(raw toolset)" there, since it may not be registered.
 
 ```
 src/
-  index.ts             bootstrap: config, context, stdio transport
-  server.ts            tool registration; tier check, MCP annotations, compact tools/list
-  config.ts            env loading + validation
-  log.ts, version.ts
+  main.rs              flags (--version, --help, --snapshot), config, context, stdio loop
+  mcp.rs               MCP over stdio by hand: initialize, ping, tools/list, tools/call (concurrent)
+  schema.rs            parameter definitions → published JSON schema + argument validation
+  config.rs            env loading + validation
+  replay.rs            (test) replays tests/golden/transcripts against the tools
+  live.rs              (test, ignored) read-only checks against TP_BASE_URL
   http/
-    core.ts            the one request function: token, Accept, redacted stderr log, Result
-    v1.ts              REST v1: get / list (auto-paging) / create / update / bulk / delete / collection remove
-    v2.ts              REST v2 and history v2 queries (read-only, auto-paging)
-    result.ts          Result<T> = { ok: true, status, data } | { ok: false, status, message, body }
-    redact.ts          token redaction
+    mod.rs             the one request function: token, Accept, redacted stderr log,
+                       Res<T> = Result<T, TpErr>; the Transport trait tests replace
+    v1.rs              REST v1: get / list (auto-paging) / create / update / bulk / delete / collection remove
+    v2.rs              REST v2 and history v2 queries (read-only, auto-paging)
+    redact.rs          token redaction
   catalog/
-    loader.ts          index scan, JSON/XML /meta, history probing
-    catalog.ts         lookups, suggestions, lazy provider with snapshot fallback
-    snapshot.json      committed baseline catalog (regenerate with npm run snapshot)
-    snapshot-cli.ts
+    loader.rs          index scan, JSON/XML /meta, history probing
+    mod.rs             lookups, suggestions, lazy Provider with snapshot fallback
+    types.rs
+    snapshot.rs        capture for --snapshot
+    snapshot.json      committed baseline catalog (regenerate with pounce --snapshot)
   resolve/             name → id: directory (users, roles, teams, projects, states,
-                       custom fields; cached), match (never-guess rules), card (id → type/project)
+                       custom fields; cached), matching (never-guess rules), card (id → type/project)
   domain/              the Targetprocess rules: cards (read_card include/shape, parent
                        chain), parent (side-effect snapshots), assignments, efforts,
-                       custom-fields, create (parent links)
-  format/              dates, HTML ↔ text, response shaping
+                       custom_fields, create (parent links), time
+  format/              dates, html (HTML ↔ text), shape (response shaping)
   tools/
-    types.ts, context.ts, schema.ts, respond.ts, index.ts
+    mod.rs             toolsets, tier check, MCP annotations, compact tools/list, call
+    context.rs, respond.rs, params.rs (shared parameters)
     generic/           layer 1: read, write (+ admin), extras (v2, history, storage,
                        attachments, undelete), validate (catalog payload checks), policy (admin gating)
     workflow/          layer 2: read, write, delete, common
-scripts/copy-assets.mjs  copies snapshot.json into build/
-tests/                 contract tests (tools/), helpers (fetch stub, MCP harness, fake
-                       Targetprocess), fixtures, live/ (TP_LIVE=1 only)
+tests/golden/          tools.json (the released tools/list) and transcripts/ (recorded
+                       tool calls with their requests and answers)
 ```
 
 ### HTTP layer
@@ -136,8 +140,9 @@ tests/                 contract tests (tools/), helpers (fetch stub, MCP harness
 
 The catalog is read from the user's own instance **lazily**: nothing at
 startup, then `/api/v1/Index/meta` and each `/api/v1/{Resource}/meta` the first
-time a tool asks for that resource (`ctx.catalog(['UserStory'])`; `'all'` for
-`read_meta` without a resource). Loads are single-flight and kept for the life
+time a tool asks for that resource (`ctx.catalog.get(&Request::Names(…))`;
+`Request::All` for `read_meta` without a resource). Loads are single-flight and
+kept for the life
 of the process; a failed one is not kept, so the next call retries, and
 `snapshot.json` stands in meanwhile. A tool must request every resource it
 looks up (`find`/`resource`); `member()` on a resource it already holds needs
@@ -150,7 +155,7 @@ collection with `CanAdd` / `CanRemove`.
 Four confirmed quirks the loader must handle:
 
 - **The index is not usable as plain JSON.** `/api/v1/Index/meta` repeats the
-  key `"ResourceMetadataDescription"` once per resource, so `JSON.parse` keeps
+  key `"ResourceMetadataDescription"` once per resource, so a JSON parser keeps
   only the last one. Scan the raw text for every occurrence instead.
 - **The index is incomplete.** History resources and `GeneralConversions` answer
   `/meta` but are not listed (56 on our instance). `{X}Histories`,
@@ -271,7 +276,7 @@ takes base64 content only; pounce never reads local files for upload.
    its assignments, remove those TP added by default, then add the requested
    people. TP can add a default **after** the first check (**live**: a bug got its
    default Product Owner a moment later), so look again after a short pause
-   (`settleDelaysMs`) and remove late ones too (`late: true`). Report what was
+   (`settle_delays_ms`) and remove late ones too (`late: true`). Report what was
    removed. On pre-existing cards, never remove anyone unless explicitly asked.
 4. **Parent state can move.** Moving a child task out of its initial state can
    advance the parent story. `write_set_state` and `write_create_card` read the
@@ -317,11 +322,11 @@ takes base64 content only; pounce never reads local files for upload.
   in most tools. Name-or-id parameters (`nameOrId`) publish `{"type":"string"}`
   for the same reason: numbers are converted to strings, and the resolvers read
   a digits-only string as an id.
-- `server.ts` answers `tools/list` itself, without the SDK's `$schema`,
-  `execution` and default-only keywords, and annotates only reads
+- `src/tools/mod.rs` (`list`) builds `tools/list` from `src/schema.rs`: no
+  `$schema`, `execution` or default-only keywords, and only reads are annotated
   (`readOnlyHint`); the other tiers keep the MCP defaults (destructive, open
-  world). Measure `tools/list` (DEVELOPMENT.md) after changing descriptions or
-  schemas.
+  world). `tests/golden/tools.json` pins the result. Measure `tools/list`
+  (DEVELOPMENT.md) after changing descriptions or schemas.
 - Keep tool descriptions to one short sentence (about 120 characters): MCP
   clients list them on every request and some cut them at 200. Rules that matter
   before a call go in the parameter they concern (e.g. `exclusive` on
@@ -334,21 +339,24 @@ takes base64 content only; pounce never reads local files for upload.
 
 ## Testing
 
-- **Contract tests** (`tests/tools/`) stub `fetch` with the payload TP really
-  returns and drive the real client through the MCP server
-  (`tests/helpers/harness.ts`: in-memory transport, real handlers). Required for
-  every tool.
-- **Stateful fake** (`tests/helpers/fake-tp.ts`) reproduces the behaviours the
-  domain rules exist for: default assignments on creation, task effort rollup,
-  a story moving when a task leaves its initial state. Write-tool and
-  acceptance tests run against it.
-- **Payload tests** assert the exact request body: no empty references, no
-  unrequested fields.
-- **Catalog coverage test**: every resource × operation and every addable/removable
-  collection in `snapshot.json` is reachable through a layer 1 tool.
-- **Live tests** (`npm run test:live`, `tests/live/`) run only with `TP_LIVE=1`
-  and are never part of `npm test`. Read tests need nothing else; the acceptance
-  run writes and needs a story the user names (`TP_LIVE_STORY`, see README).
+- **Unit tests** sit next to the code (`#[cfg(test)]` modules; the HTTP layer's in
+  `src/http/tests.rs`). `cargo test` runs them with no network.
+- **Replay** (`src/replay.rs`): `tests/golden/transcripts/*.json` were recorded
+  from the TypeScript build's contract tests (stubbed fetch, the stateful fake
+  Targetprocess that adds default assignments, rolls task effort up and moves
+  stories, fixed clock). They hold every tool call, each request it sent with the
+  answer, and the result; the Rust build must send the same requests (any order
+  within a call) and give the same answers. They cover payloads (no empty
+  references, no unrequested fields), the acceptance batch on the lazy catalog,
+  and catalog coverage (every resource × operation and every addable/removable
+  collection in `snapshot.json` reachable through a layer 1 tool). A deliberate
+  behaviour change edits the affected entries by hand and says why in the commit.
+- **Golden tools/list**: `lists_the_released_tools` compares `tools/list` with
+  `tests/golden/tools.json`.
+- **Live tests** (`src/live.rs`) are read-only and ignored by default:
+  `cargo test --bin pounce live:: -- --ignored --test-threads=1` with
+  `TP_BASE_URL`/`TP_TOKEN`. The TypeScript write acceptance run is not ported (no
+  test account).
 - When fixing a bug, first write a test that fails against the old code.
 
 ## Confirmed API surface
@@ -372,7 +380,7 @@ resources** found by probing every `{X}Histories`/`{X}SimpleHistories` and
 `GeneralConversions`, and **1054 collections**, 543 of them addable/removable.
 `src/catalog/snapshot.json` holds the full per-resource catalog (fields,
 references, collections with their flags); `read_meta` shows it, and
-`tests/catalog.test.ts` pins these counts.
+`src/catalog/mod.rs` (`snapshot_matches_the_researched_baseline_of_our_instance`) pins these counts.
 
 Compared with the public demo instance (`md5.tpondemand.com`, 69 resources),
 ours has 21 extra **Extendable Domain** types (AcceptanceCriterion, ActionItem,
@@ -400,9 +408,9 @@ from the instance, never hardcoded.
 | Nested create | e.g. story with `"Tasks":{"Items":[...]}` in one POST | docs |
 | Set collections | `"Assignments"`, `"AssignedTeams"`, `"RoleEfforts"` as `{"Items":[...]}` on the card POST. **POST appends; to replace, DELETE the existing items first** | docs |
 | Tags | `"Tags":"a,b"` replaces all tags; `"TagObjects":[{"Name":...}]` or `[{"Id":...}]` adds | docs |
-| Rich text | Descriptions and comments are HTML by default; Markdown is stored as text starting with `<!--markdown-->` (**live**: stored byte for byte; the instance has Markdown descriptions and comments written in the UI). `textToHtml(text, format)` adds the marker for `format: "markdown"`; `htmlToText` reads HTML back as light Markdown and returns Markdown unchanged | **live** |
+| Rich text | Descriptions and comments are HTML by default; Markdown is stored as text starting with `<!--markdown-->` (**live**: stored byte for byte; the instance has Markdown descriptions and comments written in the UI). `text_to_html(text, format)` adds the marker for `format: "markdown"`; `html_to_text` reads HTML back as light Markdown and returns Markdown unchanged | **live** |
 | Custom fields | By name (`"MyField": value`) or `"CustomFields":[{"Name","Value"}]`; entity-type fields take `{"Id","Kind"}`. System fields (`IsSystem`, e.g. "Total Hours") are refused with a 400 that fails the **whole** write, so pounce refuses them before sending | `CustomFields` array **live**; entity form docs |
-| Time tracking | `POST /api/v1/Times` answers 400 "Time is not available for current process" where the process lacks the "Time Tracking" practice (`Processes/{id}?include=[Practices[Name]]`; **live**, process 13). Our instance tracks time in a custom `TimeRecord` type instead: custom fields "Hours" (number, required) and "Date", references `ConnectedUser` and `Task`/`UserStory`/`Bug`/…; an automation renames records ("<card> / <person> / <hours>h") and fills day/week/month periods. `CustomFields.Date gte '…'` filters server-side. `write_log_time`/`read_times` pick `Time` or `TimeRecord` per process (`src/domain/time.ts`) | **live** |
+| Time tracking | `POST /api/v1/Times` answers 400 "Time is not available for current process" where the process lacks the "Time Tracking" practice (`Processes/{id}?include=[Practices[Name]]`; **live**, process 13). Our instance tracks time in a custom `TimeRecord` type instead: custom fields "Hours" (number, required) and "Date", references `ConnectedUser` and `Task`/`UserStory`/`Bug`/…; an automation renames records ("<card> / <person> / <hours>h") and fills day/week/month periods. `CustomFields.Date gte '…'` filters server-side. `write_log_time`/`read_times` pick `Time` or `TimeRecord` per process (`src/domain/time.rs`) | **live** |
 | Response shaping on write | `resultFormat`, `resultInclude`, `resultExclude`, `resultAppend` | docs |
 | Bulk create/update | `POST /api/v1/{Plural}/bulk` with an array, **≤ 500 items** | route **live** (400 on `[]`), docs |
 | Delete | `DELETE /api/v1/{Plural}/{id}` → 200, 404 if missing | docs; used by old server |
@@ -458,20 +466,19 @@ Done: scaffold, HTTP layer and catalog, layer 1 tools with admin gating,
 resolvers, layer 2 read/write/delete tools, v2/history/storage/conversions/
 deleted items/attachment upload, README and opencode setup. Independent reviews
 of the write paths (twice), the read paths and the infrastructure; their
-confirmed findings are fixed with regression tests.
+confirmed findings are fixed with regression tests. The live acceptance run
+(test story #36512 under feature #36193, 2026-09-23) exercised every workflow
+tool that can act on a story and its children, plus the generic tools; the bugs
+it found are fixed. The old fork is retired. 2.0.0 ports the server to Rust: the
+replay of the TypeScript build's recorded tests and the golden `tools/list` pass.
 
 Remaining:
 
-1. **Live acceptance run.** Done interactively on test story #36512 under
-   feature #36193 (2026-09-23): every workflow tool that can act on a story and
-   its children, plus the generic tools, ran against the live instance; the bugs
-   it found are fixed and re-verified live. The scripted twin
-   (`tests/live/acceptance.test.ts`) runs against a user story the user names. It reproduces the #36410 batch in one pass: state Ready, two
-   Developers + a Product Owner, role efforts, clear BackEnd / set FrontEnd, a
-   task in Coded with Core Team, 1h Developer effort and one assignee, a bug
-   assigned to one person, default assignments removed, parent state reported.
-   It already passes against the fake (`tests/tools/acceptance.test.ts`). Card
-   #36410 itself no longer exists (404). While running it, confirm the
-   metadata-inferred write shapes listed under "Confirmed API surface".
-2. **Old fork retired** (2026-09-23): the live acceptance run passed, opencode
-   uses the published package, and the local clone was removed.
+1. **No scripted write acceptance.** The TypeScript `acceptance.test.ts` (state,
+   assignees, role efforts, BackEnd/FrontEnd, a task and a bug under a story the
+   user names) is not ported, for lack of a test account; its recorded run on the
+   fake is part of the replay. Check write changes by hand on a test card, and
+   confirm the metadata-inferred write shapes listed under "Confirmed API
+   surface" there.
+2. **Memory figures** in README and CHANGELOG are burrow's; measure pounce's
+   before release.

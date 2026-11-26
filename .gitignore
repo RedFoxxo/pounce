@@ -1,7 +1,4 @@
 target/
-node_modules/
-build/
 .env
-.cache/
 .codeindex/
 coverage/
