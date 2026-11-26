@@ -5,5 +5,7 @@ export default defineConfig({
     environment: 'node',
     include: ['tests/**/*.test.ts'],
     exclude: ['tests/live/**'],
+    // Fixed clock, and transcripts for the Rust port with POUNCE_RECORD=1.
+    setupFiles: ['tests/helpers/record.ts'],
   },
 })

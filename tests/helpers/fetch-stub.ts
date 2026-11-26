@@ -1,4 +1,5 @@
 import type { FetchLike } from '../../src/http/core.js'
+import { recorder } from './record.js'
 
 export interface StubCall {
   method: string
@@ -105,12 +106,18 @@ export class FetchStub {
         matches(r.path, call.path) &&
         queryMatches(r.query, call),
     )
+    const request = { type: 'http', method, path: url.pathname, query: [...url.searchParams], headers: call.headers, body: await recordedBody(init.body) }
     if (!route) {
       this.unmatched.push(call)
-      return new Response(`UNSTUBBED ${method} ${call.path}?${call.query.toString()}`, { status: 599 })
+      const text = `UNSTUBBED ${method} ${call.path}?${call.query.toString()}`
+      recorder.push({ ...request, response: { status: 599, headers: {}, text } })
+      return new Response(text, { status: 599 })
     }
     route.used++
-    if (route.networkError) throw new TypeError(route.networkError)
+    if (route.networkError) {
+      recorder.push({ ...request, response: { networkError: route.networkError } })
+      throw new TypeError(route.networkError)
+    }
     let payload = await (typeof route.body === 'function' ? (route.body as (c: StubCall) => unknown)(call) : route.body)
     let status = route.status ?? 200
     if (payload instanceof StubReply) {
@@ -118,11 +125,31 @@ export class FetchStub {
       payload = payload.body
     }
     const text = typeof payload === 'string' ? payload : JSON.stringify(payload ?? null)
-    return new Response(text, {
-      status,
-      headers: { 'content-type': typeof payload === 'string' ? 'text/plain' : 'application/json', ...route.headers },
-    })
+    const headers = { 'content-type': typeof payload === 'string' ? 'text/plain' : 'application/json', ...route.headers }
+    recorder.push({ ...request, response: { status, headers, text } })
+    return new Response(text, { status, headers })
   }
+}
+
+/** The request body as the transcript keeps it: JSON, text, or the multipart fields. */
+async function recordedBody(body: unknown): Promise<unknown> {
+  if (body === undefined || body === null) return null
+  if (typeof body === 'string') {
+    try {
+      return { json: JSON.parse(body) }
+    } catch {
+      return { text: body }
+    }
+  }
+  if (body instanceof FormData) {
+    const fields = []
+    for (const [name, value] of body.entries()) {
+      if (typeof value === 'string') fields.push({ name, value })
+      else fields.push({ name, filename: value.name, type: value.type, base64: Buffer.from(await value.arrayBuffer()).toString('base64') })
+    }
+    return { form: fields }
+  }
+  return { unknown: String(body) }
 }
 
 function matches(pattern: string | RegExp, path: string): boolean {

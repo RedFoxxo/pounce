@@ -1,0 +1,2895 @@
+{
+ "now": "2026-11-26T10:00:00.000Z",
+ "tests": [
+  {
+   "name": "read_meta > lists every resource with its operations",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_meta",
+     "args": {}
+    },
+    {
+     "type": "result",
+     "tool": "read_meta",
+     "isError": false,
+     "text": "{\"source\":\"snapshot\",\"instance\":\"baseline snapshot\",\"version\":\"2609.2.0.3492\",\"capturedAt\":\"2026-09-23T11:17:59.713Z\",\"count\":145,\"resources\":[{\"name\":\"AcceptanceCriterion\",\"path\":\"AcceptanceCriterions\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"AcceptanceCriterionHistory\",\"path\":\"AcceptanceCriterionHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"ActionItem\",\"path\":\"ActionItems\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"ActionItemFeedback\",\"path\":\"ActionItemFeedbacks\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"ActionItemFeedbackHistory\",\"path\":\"ActionItemFeedbackHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"ActionItemHistory\",\"path\":\"ActionItemHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Assignable\",\"path\":\"Assignables\",\"operations\":[\"update\",\"delete\"]},{\"name\":\"AssignedEffort\",\"path\":\"AssignedEfforts\",\"operations\":[]},{\"name\":\"Assignment\",\"path\":\"Assignments\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Attachment\",\"path\":\"Attachments\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Bug\",\"path\":\"Bugs\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"BugHistory\",\"path\":\"BugHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"BugSimpleHistory\",\"path\":\"BugSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"Build\",\"path\":\"Builds\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"BuildHistory\",\"path\":\"BuildHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Comment\",\"path\":\"Comments\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"CommentHistory\",\"path\":\"CommentHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Company\",\"path\":\"Companies\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Context\",\"path\":\"Context\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"CustomActivity\",\"path\":\"CustomActivities\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"CustomField\",\"path\":\"CustomFields\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"CustomRule\",\"path\":\"CustomRules\",\"operations\":[\"update\"],\"admin\":true},{\"name\":\"DayPeriod\",\"path\":\"DayPeriods\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"DayPeriodHistory\",\"path\":\"DayPeriodHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"EntityPermission\",\"path\":\"EntityPermissions\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"EntityState\",\"path\":\"EntityStates\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"EntityStateHistory\",\"path\":\"EntityStateHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"EntityType\",\"path\":\"EntityTypes\",\"operations\":[]},{\"name\":\"Epic\",\"path\":\"Epics\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"EpicHistory\",\"path\":\"EpicHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"EpicSimpleHistory\",\"path\":\"EpicSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"Feature\",\"path\":\"Features\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"FeatureHistory\",\"path\":\"FeatureHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"FeatureSimpleHistory\",\"path\":\"FeatureSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"Feedback\",\"path\":\"Feedbacks\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"FeedbackHistory\",\"path\":\"FeedbackHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"General\",\"path\":\"Generals\",\"operations\":[\"update\",\"delete\"]},{\"name\":\"GeneralConversion\",\"path\":\"GeneralConversions\",\"operations\":[],\"listed\":false},{\"name\":\"GeneralFollower\",\"path\":\"GeneralFollowers\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"GeneralUser\",\"path\":\"GeneralUsers\",\"operations\":[\"update\",\"delete\"]},{\"name\":\"GlobalSettings\",\"path\":\"GlobalSettings\",\"operations\":[\"update\"],\"admin\":true},{\"name\":\"Impediment\",\"path\":\"Impediments\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"ImpedimentHistory\",\"path\":\"ImpedimentHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"ImpedimentSimpleHistory\",\"path\":\"ImpedimentSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"InboundAssignable\",\"path\":\"InboundAssignables\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Iteration\",\"path\":\"Iterations\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"IterationGoal\",\"path\":\"IterationGoals\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"IterationGoalHistory\",\"path\":\"IterationGoalHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"IterationHistory\",\"path\":\"IterationHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Location\",\"path\":\"Locations\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"LocationHistory\",\"path\":\"LocationHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Message\",\"path\":\"Messages\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"MessageUid\",\"path\":\"MessageUids\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Milestone\",\"path\":\"Milestones\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"MilestoneProject\",\"path\":\"MilestoneProjects\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"MonthPeriod\",\"path\":\"MonthPeriods\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"MonthPeriodHistory\",\"path\":\"MonthPeriodHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"OutboundAssignable\",\"path\":\"OutboundAssignables\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Overtime\",\"path\":\"Overtimes\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"OvertimeHistory\",\"path\":\"OvertimeHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"PortfolioEpic\",\"path\":\"PortfolioEpics\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"PortfolioEpicHistory\",\"path\":\"PortfolioEpicHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"PortfolioEpicSimpleHistory\",\"path\":\"PortfolioEpicSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"Priority\",\"path\":\"Priorities\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"Process\",\"path\":\"Processes\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"ProcessHistory\",\"path\":\"ProcessHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Program\",\"path\":\"Programs\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"ProgramHistory\",\"path\":\"ProgramHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Project\",\"path\":\"Projects\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"ProjectHistory\",\"path\":\"ProjectHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"ProjectMember\",\"path\":\"ProjectMembers\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"ProjectMemberHistory\",\"path\":\"ProjectMemberHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"PublicHoliday\",\"path\":\"PublicHolidays\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"PublicHolidayHistory\",\"path\":\"PublicHolidayHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"PublicHolidayLocation\",\"path\":\"PublicHolidayLocations\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"PublicHolidayLocationHistory\",\"path\":\"PublicHolidayLocationHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"QuarterPeriod\",\"path\":\"QuarterPeriods\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"QuarterPeriodHistory\",\"path\":\"QuarterPeriodHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Rate\",\"path\":\"Rates\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"RateHistory\",\"path\":\"RateHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Relation\",\"path\":\"Relations\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"RelationType\",\"path\":\"RelationTypes\",\"operations\":[]},{\"name\":\"Release\",\"path\":\"Releases\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"ReleaseHistory\",\"path\":\"ReleaseHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"ReleaseProject\",\"path\":\"ReleaseProjects\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Request\",\"path\":\"Requests\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Requester\",\"path\":\"Requesters\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"RequesterHistory\",\"path\":\"RequesterHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"RequestHistory\",\"path\":\"RequestHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"RequestSimpleHistory\",\"path\":\"RequestSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"RequestType\",\"path\":\"RequestTypes\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"Retrospective\",\"path\":\"Retrospectives\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"RetrospectiveHistory\",\"path\":\"RetrospectiveHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Revision\",\"path\":\"Revisions\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"RevisionFile\",\"path\":\"RevisionFiles\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Role\",\"path\":\"Roles\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"RoleEffort\",\"path\":\"RoleEfforts\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"RoleEntityType\",\"path\":\"RoleEntityTypes\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"RoleEntityTypeProcessSetting\",\"path\":\"RoleEntityTypeProcessSettings\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"Severity\",\"path\":\"Severities\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"SickLeave\",\"path\":\"SickLeaves\",\"operations\":\"unavailable\"},{\"name\":\"SickLeaveHistory\",\"path\":\"SickLeaveHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Tag\",\"path\":\"Tags\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Task\",\"path\":\"Tasks\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TaskHistory\",\"path\":\"TaskHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TaskSimpleHistory\",\"path\":\"TaskSimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"Team\",\"path\":\"Teams\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"TeamAssignment\",\"path\":\"TeamAssignments\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TeamHistory\",\"path\":\"TeamHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TeamIteration\",\"path\":\"TeamIterations\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TeamIterationHistory\",\"path\":\"TeamIterationHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TeamMember\",\"path\":\"TeamMembers\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"TeamMemberHistory\",\"path\":\"TeamMemberHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TeamProject\",\"path\":\"TeamProjects\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"Term\",\"path\":\"Terms\",\"operations\":[],\"admin\":true},{\"name\":\"TestCase\",\"path\":\"TestCases\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TestCaseHistory\",\"path\":\"TestCaseHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TestCaseRun\",\"path\":\"TestCaseRuns\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TestPlan\",\"path\":\"TestPlans\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TestPlanHistory\",\"path\":\"TestPlanHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TestPlanRun\",\"path\":\"TestPlanRuns\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TestPlanRunHistory\",\"path\":\"TestPlanRunHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TestRunItemHierarchyLink\",\"path\":\"TestRunItemHierarchyLinks\",\"operations\":[]},{\"name\":\"TestStep\",\"path\":\"TestSteps\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TestStepRun\",\"path\":\"TestStepRuns\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"Time\",\"path\":\"Times\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TimeHistory\",\"path\":\"TimeHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"TimeRecord\",\"path\":\"TimeRecords\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TimeRecordHistory\",\"path\":\"TimeRecordHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Timesheet\",\"path\":\"Timesheets\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"TimesheetHistory\",\"path\":\"TimesheetHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"User\",\"path\":\"Users\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"UserHistory\",\"path\":\"UserHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"UserRate\",\"path\":\"UserRates\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"UserRateHistory\",\"path\":\"UserRateHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"UserStory\",\"path\":\"UserStories\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"UserStoryHistory\",\"path\":\"UserStoryHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"UserStorySimpleHistory\",\"path\":\"UserStorySimpleHistories\",\"operations\":[],\"listed\":false},{\"name\":\"Vacation\",\"path\":\"Vacations\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"VacationHistory\",\"path\":\"VacationHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"WeekPeriod\",\"path\":\"WeekPeriods\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"WeekPeriodHistory\",\"path\":\"WeekPeriodHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false},{\"name\":\"Workflow\",\"path\":\"Workflows\",\"operations\":[\"create\",\"update\",\"delete\"],\"admin\":true},{\"name\":\"YearPeriod\",\"path\":\"YearPeriods\",\"operations\":[\"create\",\"update\",\"delete\"]},{\"name\":\"YearPeriodHistory\",\"path\":\"YearPeriodHistories\",\"operations\":[\"create\",\"update\",\"delete\"],\"listed\":false}]}"
+    }
+   ]
+  },
+  {
+   "name": "read_meta > describes one resource",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_meta",
+     "args": {
+      "resource": "userstories"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_meta",
+     "isError": false,
+     "text": "{\"source\":\"snapshot\",\"instance\":\"baseline snapshot\",\"version\":\"2609.2.0.3492\",\"capturedAt\":\"2026-09-23T11:17:59.713Z\",\"name\":\"UserStory\",\"path\":\"UserStories\",\"description\":\"A statement of end user requirements in a couple of sentences. User Story can be assigned to Iteration or Release.\",\"operations\":[\"create\",\"update\",\"delete\"],\"writeTools\":\"write_*/delete_*\",\"bases\":[\"Assignable\"],\"values\":[{\"name\":\"Id\",\"type\":\"Int32\",\"set\":true},{\"name\":\"Name\",\"type\":\"String\",\"set\":true,\"required\":true},{\"name\":\"Description\",\"type\":\"String\",\"set\":true},{\"name\":\"StartDate\",\"type\":\"DateTime\",\"set\":true},{\"name\":\"EndDate\",\"type\":\"DateTime\",\"set\":true},{\"name\":\"CreateDate\",\"type\":\"DateTime\",\"set\":false},{\"name\":\"ModifyDate\",\"type\":\"DateTime\",\"set\":true},{\"name\":\"LastCommentDate\",\"type\":\"DateTime\",\"set\":true},{\"name\":\"Tags\",\"type\":\"String\",\"set\":true},{\"name\":\"NumericPriority\",\"type\":\"Double\",\"set\":true},{\"name\":\"EntityVersion\",\"type\":\"Int64\",\"set\":false},{\"name\":\"IsNow\",\"type\":\"Boolean\",\"set\":false},{\"name\":\"IsNext\",\"type\":\"Boolean\",\"set\":false},{\"name\":\"IsPrevious\",\"type\":\"Boolean\",\"set\":false},{\"name\":\"Effort\",\"type\":\"Decimal\",\"set\":true},{\"name\":\"EffortCompleted\",\"type\":\"Decimal\",\"set\":true},{\"name\":\"EffortToDo\",\"type\":\"Decimal\",\"set\":true},{\"name\":\"Progress\",\"type\":\"Decimal\",\"set\":true},{\"name\":\"TimeSpent\",\"type\":\"Decimal\",\"set\":true},{\"name\":\"TimeRemain\",\"type\":\"Decimal\",\"set\":true},{\"name\":\"LastStateChangeDate\",\"type\":\"DateTime\",\"set\":false},{\"name\":\"PlannedStartDate\",\"type\":\"DateTime\",\"set\":true},{\"name\":\"PlannedEndDate\",\"type\":\"DateTime\",\"set\":true},{\"name\":\"Units\",\"type\":\"String\",\"set\":false},{\"name\":\"LeadTime\",\"type\":\"Double\",\"set\":false},{\"name\":\"CycleTime\",\"type\":\"Double\",\"set\":false},{\"name\":\"ForecastEndDate\",\"type\":\"DateTime\",\"set\":false},{\"name\":\"InitialEstimate\",\"type\":\"Decimal\",\"set\":true}],\"references\":[{\"name\":\"EntityType\",\"type\":\"EntityType\",\"set\":false},{\"name\":\"LastEditor\",\"type\":\"GeneralUser\",\"set\":true},{\"name\":\"Owner\",\"type\":\"GeneralUser\",\"set\":true},{\"name\":\"Creator\",\"type\":\"GeneralUser\",\"set\":true},{\"name\":\"LastCommentedUser\",\"type\":\"GeneralUser\",\"set\":false},{\"name\":\"Project\",\"type\":\"Project\",\"set\":true,\"required\":true},{\"name\":\"LinkedTestPlan\",\"type\":\"TestPlan\",\"set\":true},{\"name\":\"Milestone\",\"type\":\"Milestone\",\"set\":true},{\"name\":\"Release\",\"type\":\"Release\",\"set\":true},{\"name\":\"Iteration\",\"type\":\"Iteration\",\"set\":true},{\"name\":\"TeamIteration\",\"type\":\"TeamIteration\",\"set\":true},{\"name\":\"Team\",\"type\":\"Team\",\"set\":true},{\"name\":\"Priority\",\"type\":\"Priority\",\"set\":true,\"required\":true},{\"name\":\"EntityState\",\"type\":\"EntityState\",\"set\":true,\"required\":true},{\"name\":\"ResponsibleTeam\",\"type\":\"TeamAssignment\",\"set\":false},{\"name\":\"Feature\",\"type\":\"Feature\",\"set\":true},{\"name\":\"Build\",\"type\":\"Build\",\"set\":true},{\"name\":\"IterationGoal\",\"type\":\"IterationGoal\",\"set\":true}],\"collections\":[{\"name\":\"CustomFields\",\"type\":\"CustomFields\",\"add\":true,\"remove\":true},{\"name\":\"Comments\",\"type\":\"Comment\",\"add\":true,\"remove\":true},{\"name\":\"Messages\",\"type\":\"Message\",\"add\":false,\"remove\":false},{\"name\":\"TagObjects\",\"type\":\"Tag\",\"add\":true,\"remove\":true},{\"name\":\"MasterRelations\",\"type\":\"Relation\",\"add\":true,\"remove\":true},{\"name\":\"SlaveRelations\",\"type\":\"Relation\",\"add\":true,\"remove\":true},{\"name\":\"InboundRelations\",\"type\":\"Relation\",\"add\":true,\"remove\":true},{\"name\":\"OutboundRelations\",\"type\":\"Relation\",\"add\":true,\"remove\":true},{\"name\":\"Followers\",\"type\":\"GeneralFollower\",\"add\":true,\"remove\":true},{\"name\":\"InboundAssignables\",\"type\":\"InboundAssignable\",\"add\":false,\"remove\":false},{\"name\":\"OutboundAssignables\",\"type\":\"OutboundAssignable\",\"add\":false,\"remove\":false},{\"name\":\"Attachments\",\"type\":\"Attachment\",\"add\":false,\"remove\":false},{\"name\":\"EntityPermissions\",\"type\":\"EntityPermission\",\"add\":false,\"remove\":false},{\"name\":\"AssignedUser\",\"type\":\"GeneralUser\",\"add\":false,\"remove\":false},{\"name\":\"Assignments\",\"type\":\"Assignment\",\"add\":true,\"remove\":true},{\"name\":\"Impediments\",\"type\":\"Impediment\",\"add\":false,\"remove\":false},{\"name\":\"Times\",\"type\":\"Time\",\"add\":false,\"remove\":false},{\"name\":\"RoleEfforts\",\"type\":\"RoleEffort\",\"add\":true,\"remove\":true},{\"name\":\"AssignedEfforts\",\"type\":\"AssignedEffort\",\"add\":false,\"remove\":false},{\"name\":\"Revisions\",\"type\":\"Revision\",\"add\":false,\"remove\":false},{\"name\":\"AssignedTeams\",\"type\":\"TeamAssignment\",\"add\":true,\"remove\":true},{\"name\":\"TeamStates\",\"type\":\"TeamAssignment\",\"add\":true,\"remove\":true},{\"name\":\"Tasks\",\"type\":\"Task\",\"add\":true,\"remove\":true},{\"name\":\"Bugs\",\"type\":\"Bug\",\"add\":false,\"remove\":false},{\"name\":\"TestCases\",\"type\":\"TestCase\",\"add\":true,\"remove\":true},{\"name\":\"UserStoryTestCases\",\"type\":\"TestCase\",\"add\":false,\"remove\":false},{\"name\":\"UserStoryTestPlans\",\"type\":\"TestPlan\",\"add\":false,\"remove\":false},{\"name\":\"History\",\"type\":\"UserStorySimpleHistory\",\"add\":false,\"remove\":false},{\"name\":\"AcceptanceCriteria\",\"type\":\"AcceptanceCriterion\",\"add\":true,\"remove\":true},{\"name\":\"TimeRecords\",\"type\":\"TimeRecord\",\"add\":true,\"remove\":true}]}"
+    }
+   ]
+  },
+  {
+   "name": "read_meta > rejects an unknown resource with suggestions",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_meta",
+     "args": {
+      "resource": "UserStorie"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_meta",
+     "isError": true,
+     "text": "Not sent: Unknown resource \"UserStorie\". Did you mean: UserStory? Use read_meta without a resource to list them all."
+    }
+   ]
+  },
+  {
+   "name": "read_get / read_query / read_collection > read_get sends include in brackets and innerTake, and returns ISO dates",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_get",
+     "args": {
+      "resource": "UserStory",
+      "id": 36217,
+      "include": "Id,Name,Project"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/36217",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,Project]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"Validate the complete desktop workflow\",\"CreateDate\":\"/Date(1789125687000+0200)/\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_get",
+     "isError": false,
+     "text": "{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"Validate the complete desktop workflow\",\"CreateDate\":\"2026-09-11T13:21:27.000+02:00\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}}"
+    }
+   ]
+  },
+  {
+   "name": "read_get / read_query / read_collection > read_get carries the TP error",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_get",
+     "args": {
+      "resource": "UserStory",
+      "id": 1
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/1",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 404,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Status\":\"NotFound\",\"Message\":\"UserStory with Id 1 not found or access is forbidden.\"}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_get",
+     "isError": true,
+     "text": "Could not read UserStory 1\nmessage: 404: UserStory with Id 1 not found or access is forbidden.\nstatus: 404\nbody: {\"Status\":\"NotFound\",\"Message\":\"UserStory with Id 1 not found or access is forbidden.\"}\nrequest: GET https://tp.example/api/v1/UserStories/1?format=json&innerTake=1000&access_token=***"
+    }
+   ]
+  },
+  {
+   "name": "read_get / read_query / read_collection > read_query pages, converts \"desc\" and reports truncated",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_query",
+     "args": {
+      "resource": "Bug",
+      "where": "(EntityState.Name eq 'Open')",
+      "orderBy": "CreateDate desc",
+      "limit": 2
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Bugs",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "where",
+       "(EntityState.Name eq 'Open')"
+      ],
+      [
+       "orderByDesc",
+       "CreateDate"
+      ],
+      [
+       "take",
+       "2"
+      ],
+      [
+       "skip",
+       "0"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Next\":\"x\",\"Items\":[{\"Id\":1},{\"Id\":2}]}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_query",
+     "isError": false,
+     "text": "{\"resource\":\"Bug\",\"count\":2,\"truncated\":true,\"items\":[{\"Id\":1},{\"Id\":2}]}"
+    }
+   ]
+  },
+  {
+   "name": "read_get / read_query / read_collection > read_collection validates the collection name",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_collection",
+     "args": {
+      "resource": "UserStory",
+      "id": 5,
+      "collection": "Taks"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_collection",
+     "isError": true,
+     "text": "Not sent: UserStory has no collection \"Taks\". Did you mean: Tasks? Collections: CustomFields, Comments, Messages, TagObjects, MasterRelations, SlaveRelations, InboundRelations, OutboundRelations, Followers, InboundAssignables, OutboundAssignables, Attachments, EntityPermissions, AssignedUser, Assignments, Impediments, Times, RoleEfforts, AssignedEfforts, Revisions, AssignedTeams, TeamStates, Tasks, Bugs, TestCases, UserStoryTestCases, UserStoryTestPlans, History, AcceptanceCriteria, TimeRecords."
+    }
+   ]
+  },
+  {
+   "name": "read_get / read_query / read_collection > read_collection reads the inner collection path",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "read_collection",
+     "args": {
+      "resource": "UserStories",
+      "id": 5,
+      "collection": "tasks"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/5/Tasks",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "take",
+       "500"
+      ],
+      [
+       "skip",
+       "0"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Items\":[{\"Id\":9,\"Name\":\"t\"}]}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "read_collection",
+     "isError": false,
+     "text": "{\"resource\":\"UserStory\",\"id\":5,\"collection\":\"Tasks\",\"count\":1,\"truncated\":false,\"items\":[{\"Id\":9,\"Name\":\"t\"}]}"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > sends exactly the requested fields with canonical names",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "UserStory",
+      "fields": {
+       "name": "New",
+       "project": {
+        "Id": "26080"
+       }
+      }
+     }
+    },
+    {
+     "type": "http",
+     "method": "POST",
+     "path": "/api/v1/UserStories",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "resultFormat",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": {
+       "Name": "New",
+       "Project": {
+        "Id": 26080
+       }
+      }
+     },
+     "response": {
+      "status": 201,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"New\",\"CreateDate\":\"/Date(1789125687000+0200)/\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": false,
+     "text": "{\"created\":\"UserStory\",\"id\":36217,\"entity\":{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"New\",\"CreateDate\":\"2026-09-11T13:21:27.000+02:00\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}}}"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > never sends an empty reference",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "UserStory",
+      "fields": {
+       "Name": "x",
+       "Project": {
+        "Id": ""
+       }
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": true,
+     "text": "Not sent: Invalid field for UserStory:\n- Project must be a reference {\"Id\": <number>} (or null to clear); got {\"Id\":\"\"}. Empty references are never sent.\nSettable on UserStory: Name, Description, StartDate, EndDate, ModifyDate, LastCommentDate, Tags, NumericPriority, Effort, EffortCompleted, EffortToDo, Progress, TimeSpent, TimeRemain, PlannedStartDate, PlannedEndDate, InitialEstimate, LastEditor, Owner, Creator, Project, LinkedTestPlan, Milestone, Release, Iteration, TeamIteration, Team, Priority, EntityState, Feature, Build, IterationGoal, CustomFields, Comments, TagObjects, MasterRelations, SlaveRelations, InboundRelations, OutboundRelations, Followers, Assignments, RoleEfforts, AssignedTeams, TeamStates, Tasks, TestCases, AcceptanceCriteria, TimeRecords"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > rejects Id on create, unknown and read-only fields, listing valid options",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "UserStory",
+      "fields": {
+       "Id": 1,
+       "Nmae": "x",
+       "CreateDate": "2026-01-01",
+       "MyCustom": "v"
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": true,
+     "text": "Not sent: 4 invalid fields for UserStory:\n- Id: remove Id when creating (posting an Id updates an existing entity instead)\n- Nmae: UserStory has no field \"Nmae\". Did you mean: Name? Custom fields go in \"CustomFields\": [{\"Name\": \"...\", \"Value\": ...}].\n- CreateDate: UserStory.CreateDate is read-only\n- MyCustom: UserStory has no field \"MyCustom\". Custom fields go in \"CustomFields\": [{\"Name\": \"...\", \"Value\": ...}].\nSettable on UserStory: Name, Description, StartDate, EndDate, ModifyDate, LastCommentDate, Tags, NumericPriority, Effort, EffortCompleted, EffortToDo, Progress, TimeSpent, TimeRemain, PlannedStartDate, PlannedEndDate, InitialEstimate, LastEditor, Owner, Creator, Project, LinkedTestPlan, Milestone, Release, Iteration, TeamIteration, Team, Priority, EntityState, Feature, Build, IterationGoal, CustomFields, Comments, TagObjects, MasterRelations, SlaveRelations, InboundRelations, OutboundRelations, Followers, Assignments, RoleEfforts, AssignedTeams, TeamStates, Tasks, TestCases, AcceptanceCriteria, TimeRecords"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > validates nested children against their own resource",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "UserStory",
+      "fields": {
+       "Name": "x",
+       "Project": {
+        "Id": 2
+       },
+       "Tasks": {
+        "Items": [
+         {
+          "Name": "t",
+          "Bogus": 1
+         }
+        ]
+       }
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": true,
+     "text": "Not sent: Invalid field for UserStory:\n- Invalid field for Task:\n- Tasks[0].Bogus: Task has no field \"Bogus\". Custom fields go in \"CustomFields\": [{\"Name\": \"...\", \"Value\": ...}].\nSettable on UserStory: Name, Description, StartDate, EndDate, ModifyDate, LastCommentDate, Tags, NumericPriority, Effort, EffortCompleted, EffortToDo, Progress, TimeSpent, TimeRemain, PlannedStartDate, PlannedEndDate, InitialEstimate, LastEditor, Owner, Creator, Project, LinkedTestPlan, Milestone, Release, Iteration, TeamIteration, Team, Priority, EntityState, Feature, Build, IterationGoal, CustomFields, Comments, TagObjects, MasterRelations, SlaveRelations, InboundRelations, OutboundRelations, Followers, Assignments, RoleEfforts, AssignedTeams, TeamStates, Tasks, TestCases, AcceptanceCriteria, TimeRecords"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > wraps nested collections in Items and custom fields as an array",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "UserStory",
+      "fields": {
+       "Name": "x",
+       "Project": {
+        "Id": 2
+       },
+       "Tasks": [
+        {
+         "Name": "t"
+        }
+       ],
+       "CustomFields": [
+        {
+         "Name": "FrontEnd",
+         "Value": "To Do"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "type": "http",
+     "method": "POST",
+     "path": "/api/v1/UserStories",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "resultFormat",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": {
+       "Name": "x",
+       "Project": {
+        "Id": 2
+       },
+       "Tasks": {
+        "Items": [
+         {
+          "Name": "t"
+         }
+        ]
+       },
+       "CustomFields": [
+        {
+         "Name": "FrontEnd",
+         "Value": "To Do"
+        }
+       ]
+      }
+     },
+     "response": {
+      "status": 201,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"Validate the complete desktop workflow\",\"CreateDate\":\"/Date(1789125687000+0200)/\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": false,
+     "text": "{\"created\":\"UserStory\",\"id\":36217,\"entity\":{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"Validate the complete desktop workflow\",\"CreateDate\":\"2026-09-11T13:21:27.000+02:00\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}},\"notPersisted\":[\"Name: requested \\\"x\\\", got \\\"Validate the complete desktop workflow\\\"\",\"Project: requested Id 2, got 26080\"]}"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > update posts to the entity with its Id and reports values that did not persist",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_update",
+     "args": {
+      "resource": "UserStory",
+      "id": 36217,
+      "fields": {
+       "Name": "New name"
+      }
+     }
+    },
+    {
+     "type": "http",
+     "method": "POST",
+     "path": "/api/v1/UserStories/36217",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "resultFormat",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": {
+       "Name": "New name",
+       "Id": 36217
+      }
+     },
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"Old name\",\"CreateDate\":\"/Date(1789125687000+0200)/\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_update",
+     "isError": false,
+     "text": "{\"updated\":\"UserStory\",\"id\":36217,\"entity\":{\"ResourceType\":\"UserStory\",\"Id\":36217,\"Name\":\"Old name\",\"CreateDate\":\"2026-09-11T13:21:27.000+02:00\",\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":683,\"Name\":\"Estimated\",\"NumericPriority\":3.90625}},\"notPersisted\":[\"Name: requested \\\"New name\\\", got \\\"Old name\\\"\"]}"
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > refuses administration resources and points at admin_*",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_update",
+     "args": {
+      "resource": "Project",
+      "id": 2,
+      "fields": {
+       "Name": "x"
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_update",
+     "isError": true,
+     "text": "Not sent: Project is a configuration/administration resource; use admin_update instead."
+    },
+    {
+     "type": "call",
+     "tool": "admin_update",
+     "args": {
+      "resource": "UserStory",
+      "id": 2,
+      "fields": {
+       "Name": "x"
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "admin_update",
+     "isError": true,
+     "text": "Not sent: UserStory is not an administration resource; use write_update instead."
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > refuses operations the resource does not support",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "EntityType",
+      "fields": {
+       "Name": "x"
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": true,
+     "text": "Not sent: EntityType does not support create (supported: read only)."
+    }
+   ]
+  },
+  {
+   "name": "write_create / write_update payloads > refuses Context writes (read-only in practice)",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_create",
+     "args": {
+      "resource": "Context",
+      "fields": {
+       "Acid": "x"
+      }
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_create",
+     "isError": true,
+     "text": "Not sent: Context is computed per request; its metadata lists create/update/delete but it is read-only in practice. Use read_context."
+    }
+   ]
+  },
+  {
+   "name": "write_bulk > validates every item before sending anything",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_bulk",
+     "args": {
+      "resource": "Task",
+      "items": [
+       {
+        "Name": "ok",
+        "UserStory": {
+         "Id": 1
+        }
+       },
+       {
+        "Id": 5,
+        "Nope": 1
+       }
+      ]
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_bulk",
+     "isError": true,
+     "text": "Not sent: bulk payload rejected:\n- Invalid field for Task:\n- items[1].Nope: Task has no field \"Nope\". Did you mean: Name? Custom fields go in \"CustomFields\": [{\"Name\": \"...\", \"Value\": ...}]."
+    }
+   ]
+  },
+  {
+   "name": "write_bulk > posts creates and updates to /bulk",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_bulk",
+     "args": {
+      "resource": "Task",
+      "items": [
+       {
+        "Name": "a",
+        "UserStory": {
+         "Id": 1
+        }
+       },
+       {
+        "Id": "5",
+        "Name": "b"
+       }
+      ]
+     }
+    },
+    {
+     "type": "http",
+     "method": "POST",
+     "path": "/api/v1/Tasks/bulk",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "resultFormat",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": [
+       {
+        "Name": "a",
+        "UserStory": {
+         "Id": 1
+        }
+       },
+       {
+        "Id": 5,
+        "Name": "b"
+       }
+      ]
+     },
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_bulk",
+     "isError": false,
+     "text": "{\"resource\":\"Task\",\"sent\":2,\"result\":null}"
+    }
+   ]
+  },
+  {
+   "name": "write_bulk > caps at 500 items",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_bulk",
+     "args": {
+      "resource": "Task",
+      "items": [
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       },
+       {
+        "Name": "x"
+       }
+      ]
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_bulk",
+     "isError": true,
+     "text": "MCP error -32602: Input validation error: Invalid arguments for tool write_bulk: Too big: expected array to have <=500 items at items"
+    }
+   ]
+  },
+  {
+   "name": "collections > write_collection_add appends with {Items}",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_collection_add",
+     "args": {
+      "resource": "Build",
+      "id": 7,
+      "collection": "bugs",
+      "items": [
+       {
+        "Id": 42
+       }
+      ]
+     }
+    },
+    {
+     "type": "http",
+     "method": "POST",
+     "path": "/api/v1/Builds/7",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "resultFormat",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": {
+       "Bugs": {
+        "Items": [
+         {
+          "Id": 42
+         }
+        ]
+       },
+       "Id": 7
+      }
+     },
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Id\":7}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_collection_add",
+     "isError": false,
+     "text": "{\"added\":1,\"resource\":\"Build\",\"id\":7,\"collection\":\"Bugs\",\"entity\":{\"Id\":7}}"
+    }
+   ]
+  },
+  {
+   "name": "collections > TagObjects are posted as a plain array",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_collection_add",
+     "args": {
+      "resource": "Bug",
+      "id": 7,
+      "collection": "TagObjects",
+      "items": [
+       {
+        "Name": "ui"
+       }
+      ]
+     }
+    },
+    {
+     "type": "http",
+     "method": "POST",
+     "path": "/api/v1/Bugs/7",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "resultFormat",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": {
+       "TagObjects": [
+        {
+         "Name": "ui"
+        }
+       ],
+       "Id": 7
+      }
+     },
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Id\":7}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_collection_add",
+     "isError": false,
+     "text": "{\"added\":1,\"resource\":\"Bug\",\"id\":7,\"collection\":\"TagObjects\",\"entity\":{\"Id\":7}}"
+    }
+   ]
+  },
+  {
+   "name": "collections > refuses read-only collections",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "write_collection_add",
+     "args": {
+      "resource": "UserStory",
+      "id": 7,
+      "collection": "Bugs",
+      "items": [
+       {
+        "Id": 1
+       }
+      ]
+     }
+    },
+    {
+     "type": "result",
+     "tool": "write_collection_add",
+     "isError": true,
+     "text": "Not sent: Bugs: items cannot be added to UserStory.Bugs"
+    }
+   ]
+  },
+  {
+   "name": "collections > delete_collection_remove deletes each child by path",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_collection_remove",
+     "args": {
+      "resource": "TestPlan",
+      "id": 234,
+      "collection": "TestCases",
+      "childIds": [
+       1234,
+       1235
+      ]
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/TestPlans/234/TestCases/1234",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/TestPlans/234/TestCases/1235",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_collection_remove",
+     "isError": false,
+     "text": "{\"removed\":[1234,1235],\"resource\":\"TestPlan\",\"id\":234,\"collection\":\"TestCases\"}"
+    }
+   ]
+  },
+  {
+   "name": "delete tier > delete_entity reads first and reports what was deleted",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_entity",
+     "args": {
+      "resource": "Comment",
+      "id": 5
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Comments/5",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Id\":5,\"Description\":\"x\"}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/Comments/5",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_entity",
+     "isError": false,
+     "text": "{\"deleted\":\"Comment\",\"id\":5}"
+    }
+   ]
+  },
+  {
+   "name": "delete tier > delete_entity sends nothing when the entity cannot be read",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_entity",
+     "args": {
+      "resource": "Comment",
+      "id": 5
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Comments/5",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 404,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Message\":\"not found\"}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_entity",
+     "isError": true,
+     "text": "Could not read Comment 5 before deleting it; nothing was deleted\nmessage: 404: not found\nstatus: 404\nbody: {\"Message\":\"not found\"}\nrequest: GET https://tp.example/api/v1/Comments/5?format=json&access_token=***"
+    }
+   ]
+  },
+  {
+   "name": "delete tier > delete_bulk sends ids",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_bulk",
+     "args": {
+      "resource": "Tag",
+      "ids": [
+       14,
+       56
+      ]
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/Tags/bulk",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+     },
+     "body": {
+      "json": [
+       {
+        "Id": 14
+       },
+       {
+        "Id": 56
+       }
+      ]
+     },
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_bulk",
+     "isError": false,
+     "text": "{\"deleted\":\"Tag\",\"ids\":[14,56],\"result\":null}"
+    }
+   ]
+  }
+ ]
+}

@@ -5,6 +5,7 @@ import type { Config } from '../../src/config.js'
 import { createServer } from '../../src/server.js'
 import { createContext, type ToolContext } from '../../src/tools/context.js'
 import { FetchStub } from './fetch-stub.js'
+import { recorder } from './record.js'
 
 export const BASE = 'https://tp.example'
 export const TOKEN = 'test-token-0000'
@@ -40,6 +41,8 @@ export async function harness(options: { stub?: FetchStub; config?: Partial<Conf
   const config: Config = { baseUrl: BASE, token: TOKEN, ...options.config }
   const catalog = snapshot()
   const ctx = createContext(config, { fetch: stub.fetch, settleDelaysMs: [0], ...(options.liveCatalog ? {} : { catalog: async () => catalog }) })
+  const { baseUrl: _b, token: _t, ...settings } = config
+  recorder.push({ type: 'harness', config: settings, liveCatalog: Boolean(options.liveCatalog) })
   const server = createServer(ctx)
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await server.connect(serverTransport)
@@ -50,7 +53,9 @@ export async function harness(options: { stub?: FetchStub; config?: Partial<Conf
     stub,
     ctx,
     async call(name, args = {}) {
-      const result = await client.callTool({ name, arguments: args })
+      recorder.open()
+      recorder.push({ type: 'call', tool: name, args })
+      const result = await client.callTool({ name, arguments: args }).finally(() => recorder.close())
       const content = result.content as { type: string; text: string }[]
       const text = content.map((c) => c.text).join('\n')
       let json: unknown
@@ -61,10 +66,13 @@ export async function harness(options: { stub?: FetchStub; config?: Partial<Conf
           json = undefined
         }
       }
+      recorder.push({ type: 'result', tool: name, isError: Boolean(result.isError), text })
       return { isError: Boolean(result.isError), text, json }
     },
     async listTools() {
-      return (await client.listTools()).tools as { name: string; description?: string; annotations?: Record<string, unknown> }[]
+      const tools = (await client.listTools()).tools
+      recorder.push({ type: 'listTools', tools })
+      return tools as { name: string; description?: string; annotations?: Record<string, unknown> }[]
     },
     async close() {
       await client.close()

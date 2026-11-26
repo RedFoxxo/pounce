@@ -1,0 +1,941 @@
+{
+ "now": "2026-11-26T10:00:00.000Z",
+ "tests": [
+  {
+   "name": "delete_card > resolves the type, deletes, confirms it is gone and reports the parent",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_card",
+     "args": {
+      "id": 36406
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/36406",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"General\",\"Id\":36406,\"Name\":\"Task\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":5,\"Name\":\"Task\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13,\"Name\":\"Mamami 2025\"}}}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Tasks/36406",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,Description,EntityType[Id,Name],EntityState[Id,Name,IsInitial,IsFinal],Project[Id,Name,Process[Id,Name]],Owner[Id,FirstName,LastName,Login],CreateDate,ModifyDate,Tags,Effort,EffortCompleted,EffortToDo,TimeSpent,TimeRemain,Priority[Id,Name],Release[Id,Name],Iteration[Id,Name],TeamIteration[Id,Name],Team[Id,Name],CustomFields,Assignments[Id,Role[Id,Name],GeneralUser[Id,FirstName,LastName,Login]],RoleEfforts[Id,Role[Id,Name],Effort,EffortCompleted,EffortToDo],AssignedTeams[Id,Team[Id,Name],EntityState[Id,Name]],UserStory[Id,Name]]"
+      ],
+      [
+       "append",
+       "[Comments-Count,Attachments-Count,Times-Count,TimeRecords-Count]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"Task\",\"Id\":36406,\"Name\":\"Task\",\"Description\":null,\"Tags\":\"\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":5,\"Name\":\"Task\"},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":691,\"Name\":\"Open\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"Effort\":8,\"CustomFields\":[{\"Name\":\"BackEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"},{\"Name\":\"FrontEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"}],\"Assignments\":{\"Items\":[]},\"RoleEfforts\":{\"Items\":[{\"ResourceType\":\"RoleEffort\",\"Id\":50003,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":12,\"Name\":\"Designer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50004,\"Effort\":8,\"Role\":{\"ResourceType\":\"Role\",\"Id\":13,\"Name\":\"Developer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50005,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":7,\"Name\":\"Product Owner\"}}]},\"AssignedTeams\":{\"Items\":[]},\"UserStory\":{\"ResourceType\":\"UserStory\",\"Id\":36216,\"Name\":\"Story\"}}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityState[Id,Name],Effort,RoleEfforts[Id,Role[Id,Name],Effort]]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36216,\"Name\":\"Story\",\"Description\":null,\"Tags\":\"\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":686,\"Name\":\"In Progress\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"Effort\":8,\"CustomFields\":[{\"Name\":\"BackEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"},{\"Name\":\"FrontEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"}],\"Assignments\":{\"Items\":[]},\"RoleEfforts\":{\"Items\":[{\"ResourceType\":\"RoleEffort\",\"Id\":50000,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":12,\"Name\":\"Designer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50001,\"Effort\":8,\"Role\":{\"ResourceType\":\"Role\",\"Id\":13,\"Name\":\"Developer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50002,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":7,\"Name\":\"Product Owner\"}}]},\"AssignedTeams\":{\"Items\":[]},\"Feature\":null}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/Tasks/36406",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Tasks/36406",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 404,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Status\":\"Error\",\"Message\":\"not found\"}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityState[Id,Name],Effort,RoleEfforts[Id,Role[Id,Name],Effort]]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36216,\"Name\":\"Story\",\"Description\":null,\"Tags\":\"\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":686,\"Name\":\"In Progress\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"Effort\":8,\"CustomFields\":[{\"Name\":\"BackEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"},{\"Name\":\"FrontEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"}],\"Assignments\":{\"Items\":[]},\"RoleEfforts\":{\"Items\":[{\"ResourceType\":\"RoleEffort\",\"Id\":50000,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":12,\"Name\":\"Designer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50001,\"Effort\":8,\"Role\":{\"ResourceType\":\"Role\",\"Id\":13,\"Name\":\"Developer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50002,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":7,\"Name\":\"Product Owner\"}}]},\"AssignedTeams\":{\"Items\":[]},\"Feature\":null}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_card",
+     "isError": false,
+     "text": "{\"deleted\":{\"id\":36406,\"type\":\"Task\",\"name\":\"Task\",\"state\":\"Open\",\"project\":{\"id\":26080,\"name\":\"SBP\"}},\"parent\":{\"id\":36216,\"type\":\"UserStory\",\"name\":\"Story\",\"state\":{\"changed\":false,\"before\":\"In Progress\",\"after\":\"In Progress\"}}}"
+    }
+   ]
+  },
+  {
+   "name": "delete_card > refuses a card with child cards unless withChildren is passed",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_card",
+     "args": {
+      "id": 36216
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"General\",\"Id\":36216,\"Name\":\"Story\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13,\"Name\":\"Mamami 2025\"}}}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,Description,EntityType[Id,Name],EntityState[Id,Name,IsInitial,IsFinal],Project[Id,Name,Process[Id,Name]],Owner[Id,FirstName,LastName,Login],CreateDate,ModifyDate,Tags,Effort,EffortCompleted,EffortToDo,TimeSpent,TimeRemain,Priority[Id,Name],Release[Id,Name],Iteration[Id,Name],TeamIteration[Id,Name],Team[Id,Name],CustomFields,Assignments[Id,Role[Id,Name],GeneralUser[Id,FirstName,LastName,Login]],RoleEfforts[Id,Role[Id,Name],Effort,EffortCompleted,EffortToDo],AssignedTeams[Id,Team[Id,Name],EntityState[Id,Name]],Feature[Id,Name]]"
+      ],
+      [
+       "append",
+       "[Tasks-Count,Bugs-Count,TestCases-Count,AcceptanceCriteria-Count,Comments-Count,Attachments-Count,Times-Count,TimeRecords-Count]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36216,\"Name\":\"Story\",\"Description\":null,\"Tags\":\"\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":681,\"Name\":\"Open\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"Effort\":0,\"CustomFields\":[{\"Name\":\"BackEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"},{\"Name\":\"FrontEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"}],\"Assignments\":{\"Items\":[]},\"RoleEfforts\":{\"Items\":[{\"ResourceType\":\"RoleEffort\",\"Id\":50000,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":12,\"Name\":\"Designer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50001,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":13,\"Name\":\"Developer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50002,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":7,\"Name\":\"Product Owner\"}}]},\"AssignedTeams\":{\"Items\":[]},\"Feature\":null,\"Tasks-Count\":1,\"Comments-Count\":3}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_card",
+     "isError": true,
+     "text": "Not sent: UserStory 36216 has child cards (1 tasks); pass withChildren: true to delete it anyway"
+    },
+    {
+     "type": "call",
+     "tool": "delete_card",
+     "args": {
+      "id": 36216,
+      "withChildren": true
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"General\",\"Id\":36216,\"Name\":\"Story\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13,\"Name\":\"Mamami 2025\"}}}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,Description,EntityType[Id,Name],EntityState[Id,Name,IsInitial,IsFinal],Project[Id,Name,Process[Id,Name]],Owner[Id,FirstName,LastName,Login],CreateDate,ModifyDate,Tags,Effort,EffortCompleted,EffortToDo,TimeSpent,TimeRemain,Priority[Id,Name],Release[Id,Name],Iteration[Id,Name],TeamIteration[Id,Name],Team[Id,Name],CustomFields,Assignments[Id,Role[Id,Name],GeneralUser[Id,FirstName,LastName,Login]],RoleEfforts[Id,Role[Id,Name],Effort,EffortCompleted,EffortToDo],AssignedTeams[Id,Team[Id,Name],EntityState[Id,Name]],Feature[Id,Name]]"
+      ],
+      [
+       "append",
+       "[Tasks-Count,Bugs-Count,TestCases-Count,AcceptanceCriteria-Count,Comments-Count,Attachments-Count,Times-Count,TimeRecords-Count]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"UserStory\",\"Id\":36216,\"Name\":\"Story\",\"Description\":null,\"Tags\":\"\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":681,\"Name\":\"Open\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"Effort\":0,\"CustomFields\":[{\"Name\":\"BackEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"},{\"Name\":\"FrontEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"}],\"Assignments\":{\"Items\":[]},\"RoleEfforts\":{\"Items\":[{\"ResourceType\":\"RoleEffort\",\"Id\":50000,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":12,\"Name\":\"Designer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50001,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":13,\"Name\":\"Developer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50002,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":7,\"Name\":\"Product Owner\"}}]},\"AssignedTeams\":{\"Items\":[]},\"Feature\":null,\"Tasks-Count\":1,\"Comments-Count\":3}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/UserStories/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/UserStories/36216",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 404,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Status\":\"Error\",\"Message\":\"not found\"}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_card",
+     "isError": false,
+     "text": "{\"deleted\":{\"id\":36216,\"type\":\"UserStory\",\"name\":\"Story\",\"state\":\"Open\",\"project\":{\"id\":26080,\"name\":\"SBP\"}},\"hadChildren\":{\"tasks\":1}}"
+    }
+   ]
+  },
+  {
+   "name": "delete_card > refuses administration resources",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_card",
+     "args": {
+      "id": 2
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/2",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Id\":2,\"Name\":\"P\",\"EntityType\":{\"Id\":1,\"Name\":\"Project\"},\"Project\":null}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Projects/2",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,Description,EntityType[Id,Name],EntityState[Id,Name,IsInitial,IsFinal],Project[Id,Name,Process[Id,Name]],Owner[Id,FirstName,LastName,Login],CreateDate,ModifyDate,Tags,Effort,EffortCompleted,EffortToDo,CustomFields]"
+      ],
+      [
+       "append",
+       "[Tasks-Count,Bugs-Count,UserStories-Count,Features-Count,Epics-Count,TestCases-Count,Comments-Count,Attachments-Count,Times-Count]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Id\":2,\"Name\":\"P\"}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_card",
+     "isError": true,
+     "text": "Not sent: Project is a configuration/administration resource; use admin_delete instead."
+    }
+   ]
+  },
+  {
+   "name": "delete_relation > finds the relation in either direction and deletes it",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_relation",
+     "args": {
+      "id": 2,
+      "to": 1
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Relations",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,RelationType[Id,Name],Master[Id,Name],Slave[Id,Name]]"
+      ],
+      [
+       "where",
+       "(Master.Id eq 2) and (Slave.Id eq 1)"
+      ],
+      [
+       "take",
+       "1000"
+      ],
+      [
+       "skip",
+       "0"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Items\":[]}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Relations",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,RelationType[Id,Name],Master[Id,Name],Slave[Id,Name]]"
+      ],
+      [
+       "where",
+       "(Master.Id eq 1) and (Slave.Id eq 2)"
+      ],
+      [
+       "take",
+       "1000"
+      ],
+      [
+       "skip",
+       "0"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Items\":[{\"Id\":7,\"RelationType\":{\"Id\":1,\"Name\":\"Blocker\"},\"Master\":{\"Id\":1,\"Name\":\"a\"},\"Slave\":{\"Id\":2,\"Name\":\"b\"}}]}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/Relations/7",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_relation",
+     "isError": false,
+     "text": "{\"deleted\":{\"id\":7,\"type\":\"Blocker\",\"master\":{\"id\":1,\"name\":\"a\"},\"slave\":{\"id\":2,\"name\":\"b\"}}}"
+    }
+   ]
+  },
+  {
+   "name": "delete_relation > asks for the type when there are several",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_relation",
+     "args": {
+      "id": 1,
+      "to": 2
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Relations",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,RelationType[Id,Name],Master[Id,Name],Slave[Id,Name]]"
+      ],
+      [
+       "where",
+       "(Master.Id eq 1) and (Slave.Id eq 2)"
+      ],
+      [
+       "take",
+       "1000"
+      ],
+      [
+       "skip",
+       "0"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Items\":[{\"Id\":7,\"RelationType\":{\"Id\":1,\"Name\":\"Blocker\"},\"Master\":{\"Id\":1,\"Name\":\"a\"},\"Slave\":{\"Id\":2,\"Name\":\"b\"}},{\"Id\":8,\"RelationType\":{\"Id\":1,\"Name\":\"Link\"},\"Master\":{\"Id\":1,\"Name\":\"a\"},\"Slave\":{\"Id\":2,\"Name\":\"b\"}}]}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Relations",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,RelationType[Id,Name],Master[Id,Name],Slave[Id,Name]]"
+      ],
+      [
+       "where",
+       "(Master.Id eq 2) and (Slave.Id eq 1)"
+      ],
+      [
+       "take",
+       "1000"
+      ],
+      [
+       "skip",
+       "0"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Items\":[{\"Id\":7,\"RelationType\":{\"Id\":1,\"Name\":\"Blocker\"},\"Master\":{\"Id\":1,\"Name\":\"a\"},\"Slave\":{\"Id\":2,\"Name\":\"b\"}},{\"Id\":8,\"RelationType\":{\"Id\":1,\"Name\":\"Link\"},\"Master\":{\"Id\":1,\"Name\":\"a\"},\"Slave\":{\"Id\":2,\"Name\":\"b\"}}]}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_relation",
+     "isError": true,
+     "text": "Not sent: 4 relations between 1 and 2 (Blocker, Link, Blocker, Link); pass relation"
+    }
+   ]
+  },
+  {
+   "name": "delete_card child rules per type > a test case's linked stories are not children (live regression)",
+   "direct": false,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "call",
+     "tool": "delete_card",
+     "args": {
+      "id": 36517
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/36517",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"General\",\"Id\":36517,\"Name\":\"Case one\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":12,\"Name\":\"TestCase\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13,\"Name\":\"Mamami 2025\"}}}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/TestCases/36517",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,Description,EntityType[Id,Name],Project[Id,Name,Process[Id,Name]],Owner[Id,FirstName,LastName,Login],CreateDate,ModifyDate,Tags,Priority[Id,Name],CustomFields,UserStory[Id,Name]]"
+      ],
+      [
+       "append",
+       "[UserStories-Count,Comments-Count,Attachments-Count]"
+      ],
+      [
+       "innerTake",
+       "1000"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"TestCase\",\"Id\":36517,\"Name\":\"Case one\",\"Description\":null,\"Tags\":\"\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":12,\"Name\":\"TestCase\"},\"EntityState\":{\"ResourceType\":\"EntityState\",\"Id\":681,\"Name\":\"Open\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13}},\"Effort\":0,\"CustomFields\":[{\"Name\":\"BackEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"},{\"Name\":\"FrontEnd\",\"Type\":\"DropDown\",\"Value\":\"To Do\"}],\"Assignments\":{\"Items\":[]},\"RoleEfforts\":{\"Items\":[{\"ResourceType\":\"RoleEffort\",\"Id\":50000,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":12,\"Name\":\"Designer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50001,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":13,\"Name\":\"Developer\"}},{\"ResourceType\":\"RoleEffort\",\"Id\":50002,\"Effort\":0,\"Role\":{\"ResourceType\":\"Role\",\"Id\":7,\"Name\":\"Product Owner\"}}]},\"AssignedTeams\":{\"Items\":[]},\"UserStories-Count\":1}"
+     }
+    },
+    {
+     "type": "http",
+     "method": "DELETE",
+     "path": "/api/v1/TestCases/36517",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "text/plain"
+      },
+      "text": ""
+     }
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/TestCases/36517",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 404,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Status\":\"Error\",\"Message\":\"not found\"}"
+     }
+    },
+    {
+     "type": "result",
+     "tool": "delete_card",
+     "isError": false,
+     "text": "{\"deleted\":{\"id\":36517,\"type\":\"TestCase\",\"name\":\"Case one\",\"state\":\"Open\",\"project\":{\"id\":26080,\"name\":\"SBP\"}}}"
+    }
+   ]
+  }
+ ]
+}

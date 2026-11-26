@@ -1,0 +1,89 @@
+{
+ "now": "2026-11-26T10:00:00.000Z",
+ "tests": [
+  {
+   "name": "cardInfo > resolves type, resource, project and process from Generals",
+   "direct": true,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/36217",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 200,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"ResourceType\":\"General\",\"Id\":36217,\"Name\":\"Card 36217\",\"EntityType\":{\"ResourceType\":\"EntityType\",\"Id\":4,\"Name\":\"UserStory\"},\"Project\":{\"ResourceType\":\"Project\",\"Id\":26080,\"Name\":\"SBP\",\"Process\":{\"ResourceType\":\"Process\",\"Id\":13,\"Name\":\"Mamami 2025\"}}}"
+     }
+    }
+   ]
+  },
+  {
+   "name": "cardInfo > reports a missing card",
+   "direct": true,
+   "concurrent": false,
+   "events": [
+    {
+     "type": "harness",
+     "config": {},
+     "liveCatalog": false
+    },
+    {
+     "type": "http",
+     "method": "GET",
+     "path": "/api/v1/Generals/1",
+     "query": [
+      [
+       "format",
+       "json"
+      ],
+      [
+       "include",
+       "[Id,Name,EntityType,Project[Id,Name,Process]]"
+      ],
+      [
+       "access_token",
+       "test-token-0000"
+      ]
+     ],
+     "headers": {
+      "Accept": "application/json"
+     },
+     "body": null,
+     "response": {
+      "status": 404,
+      "headers": {
+       "content-type": "application/json"
+      },
+      "text": "{\"Message\":\"General with Id 1 not found or access is forbidden.\"}"
+     }
+    }
+   ]
+  }
+ ]
+}
