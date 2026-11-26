@@ -419,7 +419,7 @@ fn strict_equal(a: &Value, b: &Value) -> bool {
 }
 
 /// A number as JavaScript prints it: `5` for 5.0, exponents from 1e21 and below 1e-6.
-fn js_number(n: f64) -> String {
+pub(crate) fn js_number(n: f64) -> String {
     if n == 0.0 {
         return "0".to_string();
     }
@@ -434,7 +434,7 @@ fn js_number(n: f64) -> String {
 }
 
 /// `JSON.stringify` of a JSON value: compact, numbers as JavaScript prints them.
-fn js_json(value: &Value) -> String {
+pub(crate) fn js_json(value: &Value) -> String {
     match value {
         Value::Number(n) => js_number(n.as_f64().unwrap_or(0.0)),
         Value::Array(items) => {
@@ -459,7 +459,7 @@ fn js_json(value: &Value) -> String {
 }
 
 /// `String(value)`.
-fn js_string(value: &Value) -> String {
+pub(crate) fn js_string(value: &Value) -> String {
     match value {
         Value::String(s) => s.clone(),
         Value::Number(n) => js_number(n.as_f64().unwrap_or(0.0)),

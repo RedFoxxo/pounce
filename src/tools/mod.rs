@@ -6,6 +6,7 @@ pub mod context;
 pub mod generic;
 pub mod params;
 pub mod respond;
+pub mod workflow;
 
 pub use context::{Clock, Ctx};
 pub use respond::{Answer, ToolResult, failed, failure, invalid, success};
@@ -81,9 +82,25 @@ impl Toolset {
 
 fn group(set: Toolset) -> Vec<Tool> {
     match set {
-        Toolset::Cards => Vec::new(),
-        Toolset::Raw => Vec::new(),
-        Toolset::Admin => Vec::new(),
+        Toolset::Cards => {
+            let mut tools = workflow::read::tools();
+            tools.extend(workflow::write::tools());
+            tools.extend(workflow::delete::tools());
+            tools.extend(generic::extras::card_tools());
+            tools
+        }
+        Toolset::Raw => {
+            let mut tools = generic::read::read_tools();
+            tools.extend(generic::write::write_tools());
+            tools.extend(generic::write::delete_tools());
+            tools.extend(generic::extras::raw_tools());
+            tools
+        }
+        Toolset::Admin => {
+            let mut tools = generic::write::admin_tools();
+            tools.extend(generic::extras::admin_tools());
+            tools
+        }
     }
 }
 

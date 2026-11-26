@@ -153,3 +153,108 @@ pub fn load_config(env: &HashMap<String, String>) -> Result<Config, String> {
         toolsets: sets,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn env(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        let mut env: HashMap<String, String> = [
+            ("TP_BASE_URL", "https://example.tpondemand.com"),
+            ("TP_TOKEN", "secret"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        for (k, v) in pairs {
+            env.insert(k.to_string(), v.to_string());
+        }
+        env
+    }
+
+    #[test]
+    fn accepts_the_required_variables() {
+        assert_eq!(
+            load_config(&env(&[])),
+            Ok(Config::new("https://example.tpondemand.com", "secret"))
+        );
+    }
+
+    #[test]
+    fn strips_a_trailing_slash() {
+        let c = load_config(&env(&[("TP_BASE_URL", "https://example.tpondemand.com/")])).unwrap();
+        assert_eq!(c.base_url, "https://example.tpondemand.com");
+    }
+
+    #[test]
+    fn reports_every_missing_variable_at_once() {
+        let e = load_config(&HashMap::new()).unwrap_err();
+        assert!(e.contains("TP_BASE_URL is required"), "{e}");
+        assert!(e.contains("TP_TOKEN is required"), "{e}");
+    }
+
+    #[test]
+    fn rejects_an_api_suffix() {
+        let e = load_config(&env(&[(
+            "TP_BASE_URL",
+            "https://example.tpondemand.com/api/v1",
+        )]))
+        .unwrap_err();
+        assert!(e.contains("without /api"), "{e}");
+    }
+
+    #[test]
+    fn parses_optional_ids_and_omits_unset_ones() {
+        let c = load_config(&env(&[
+            ("TP_DEFAULT_PROJECT_ID", "42"),
+            ("TP_DEFAULT_TEAM_ID", ""),
+        ]))
+        .unwrap();
+        assert_eq!((c.default_project_id, c.default_team_id), (Some(42), None));
+    }
+
+    #[test]
+    fn rejects_non_numeric_ids() {
+        let e = load_config(&env(&[("TP_DEFAULT_TEAM_ID", "core")])).unwrap_err();
+        assert!(
+            e.contains("TP_DEFAULT_TEAM_ID must be a positive numeric id"),
+            "{e}"
+        );
+    }
+
+    #[test]
+    fn requires_https_except_for_localhost() {
+        let e = load_config(&env(&[("TP_BASE_URL", "http://example.tpondemand.com")])).unwrap_err();
+        assert!(e.contains("must be an https URL"), "{e}");
+        let c = load_config(&env(&[("TP_BASE_URL", "http://localhost:8080")])).unwrap();
+        assert_eq!(c.base_url, "http://localhost:8080");
+    }
+
+    #[test]
+    fn rejects_id_0_and_unsafe_integers() {
+        for id in ["0", "99999999999999999999"] {
+            let e = load_config(&env(&[("TP_DEFAULT_PROJECT_ID", id)])).unwrap_err();
+            assert!(e.contains("positive numeric id"), "{e}");
+        }
+    }
+
+    #[test]
+    fn reads_toolsets_in_canonical_order_and_rejects_unknown_names() {
+        let c = load_config(&env(&[("POUNCE_TOOLSETS", " Admin, cards ")])).unwrap();
+        assert_eq!(c.toolsets, Some(vec![Toolset::Cards, Toolset::Admin]));
+        assert_eq!(
+            load_config(&env(&[("POUNCE_TOOLSETS", "")]))
+                .unwrap()
+                .toolsets,
+            None
+        );
+        let e = load_config(&env(&[("POUNCE_TOOLSETS", "cards,layer1")])).unwrap_err();
+        assert!(e.contains("unknown toolsets: layer1"), "{e}");
+    }
+
+    #[test]
+    fn rejects_toolsets_that_name_no_toolset() {
+        let e = load_config(&env(&[("POUNCE_TOOLSETS", " , ")])).unwrap_err();
+        assert!(e.contains("POUNCE_TOOLSETS names no toolset"), "{e}");
+    }
+}

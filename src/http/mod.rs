@@ -2,6 +2,8 @@
 //! redacted request to stderr, and turns every outcome into a `Res`.
 
 pub mod redact;
+#[cfg(test)]
+mod tests;
 pub mod v1;
 pub mod v2;
 
